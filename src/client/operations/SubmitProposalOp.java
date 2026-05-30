@@ -1,0 +1,78 @@
+package client.operations;
+
+import client.ClientJsonUtils;
+import client.GameClient;
+import client.UserStatus;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
+public class SubmitProposalOp extends Operation{
+
+    public SubmitProposalOp(GameClient game){
+        this.game = game;
+        this.name = "submitProposal";
+    }
+
+    @Override
+    public boolean checks() {
+        if(game.u_status != UserStatus.LOGGED_IN){
+            System.out.println("---\tDevi aver fatto un accesso prima di poter giocare");
+            return false;
+        }
+
+        return true;
+    }
+
+    @Override
+    public String payload() {
+        //chiedo all'utente le parole da proporre
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Inserisci le parole che compongono la tua proposta\n");
+
+        //prendo le 4 parole
+        int conto = 0;
+        List<String> words = new ArrayList<String>();
+        while(conto < 4){
+            String parola = "";
+            System.out.println("Parola " + (conto + 1) + ": ");
+            if (scanner.hasNextLine()) {
+                 parola = scanner.nextLine().strip();
+            }
+            if(parola.equals("")){
+                System.out.print("---Capita di premere troppo invio...\n");
+                continue;
+            }
+
+            words.add(parola);
+            conto += 1;
+        }
+
+        //creo la jsonstring
+        return ClientJsonUtils.get_submitProposal_message(words);
+    }
+
+    @Override
+    public void on_fail(){}
+
+    @Override
+    public void digest(String response) {
+        int response_status = ClientJsonUtils.get_status(response, name);
+        String desc = ClientJsonUtils.get_description(response);
+
+        switch(response_status){
+            case 0:
+                System.out.println(desc);
+                break;
+
+            case -1:
+                System.out.println("Errore di comunicazione durante l'invio della proposta");
+                break;
+
+            default:
+                //comunico all'utente l'errore
+                System.out.println("Errore [" + response_status +"]\n\t" + desc);
+        }
+    }
+}
