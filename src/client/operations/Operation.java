@@ -8,6 +8,7 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.Scanner;
 
 public abstract class Operation{
     public GameClient game;
@@ -122,6 +123,37 @@ public abstract class Operation{
         }
 
         return sock;
+    }
+
+    protected int get_int(String richiesta, Scanner scanner){
+        String in = "";
+        int num;
+        while(true){
+            in = get_string(richiesta, scanner);
+            try{
+                num = Integer.parseInt(in);
+                break;
+            }catch (NumberFormatException e){
+                System.out.print("---Va inserito un numero intero...\n");
+            }
+        }
+
+        return num;
+    }
+
+    protected String get_string(String richiesta, Scanner scanner){
+        String in = "";
+        while(true){
+            System.out.print(richiesta);
+            if (scanner.hasNextLine()) {
+                in = scanner.nextLine();
+            }
+            if(!in.equals("")){
+                return in;
+            }
+
+            System.out.print("---Capita di premere troppo invio...\n");
+        }
     }
 
 }

@@ -5,15 +5,20 @@ import client.GameClient;
 import client.UserStatus;
 
 import java.nio.channels.SocketChannel;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
 
 public class RegisterOp extends Operation {
     private String user;
     private boolean clear = false;
+    private List<String> banned_users;
 
-    public RegisterOp(GameClient game){
+    public RegisterOp(GameClient game, List<String> banlist){
         this.game = game;
         this.name = "register";
+        banned_users = banlist;
     }
 
     @Override
@@ -39,14 +44,17 @@ public class RegisterOp extends Operation {
         String password = "", username = "";
 
         Scanner scanner = new Scanner(System.in);
-        System.out.print("Inserisci lo username con cui ti vuoi registrare: ");
-        if (scanner.hasNextLine()) {
-            username = scanner.nextLine().strip();
+        while(true){
+            username = get_string("Inserisci lo username con cui ti vuoi registrare: ", scanner);
+
+            if(!banned_users.contains(username)){
+                break;
+            }
+
+            System.out.println("--- Lo username: +\""+username+"\" non è valido");
         }
-        System.out.print("Inserisci la password: ");
-        if (scanner.hasNextLine()) {
-            password = scanner.nextLine().strip();
-        }
+
+        password = get_string("Inserisci la password: ", scanner);
 
         this.user = username;
 

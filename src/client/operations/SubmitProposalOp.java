@@ -35,13 +35,9 @@ public class SubmitProposalOp extends Operation{
         int conto = 0;
         List<String> words = new ArrayList<String>();
         while(conto < 4){
-            String parola = "";
-            System.out.println("Parola " + (conto + 1) + ": ");
-            if (scanner.hasNextLine()) {
-                 parola = scanner.nextLine().strip();
-            }
-            if(parola.equals("")){
-                System.out.print("---Capita di premere troppo invio...\n");
+            String parola = get_string("Parola " + (conto + 1) + ": ", scanner);
+            if(words.contains(parola)){
+                System.out.print("---Ogni parola deve essere unica\n");
                 continue;
             }
 

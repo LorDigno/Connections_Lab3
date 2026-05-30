@@ -13,17 +13,17 @@ public class CurrentPuzzle{
     public int mistakes, score, time_left, guesses_left;
     //time_left in millisecondi
 
-    public CurrentPuzzle(RealPuzzle puzzle, List<String> words, int time_left){
+    public CurrentPuzzle(RealPuzzle puzzle, List<String> words){
         this.real = puzzle;
         leftover_words = words;
-        this.time_left = time_left;
+        this.time_left = real.time_left;
         mistakes = 0;
         score = 0;
         guesses_left = 4;
         good_proposals = new ArrayList<List<String>>();
     }
 
-    public StatusDescription legal(List<String> proposal){
+    public StatusDescription analyze(List<String> proposal){
         StatusDescription out = new StatusDescription();
 
         //proposta mal formata
@@ -32,8 +32,6 @@ public class CurrentPuzzle{
             out.setDescription("Una proposta deve essere formata da esattamente 4 parole");
             return out;
         }
-
-
 
         Iterator<String> iter = proposal.iterator();
         String group = null;
@@ -96,7 +94,7 @@ public class CurrentPuzzle{
         return out;
     }
 
-
+    public String
 
     @Override
     public String toString() {

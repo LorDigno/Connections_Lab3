@@ -37,10 +37,11 @@ public class UpdateCredentialsOp extends Operation {
         //chiedo all'utente i dati dell'account che vuole cambiare
         String password = "", username = "";
         Scanner scanner = new Scanner(System.in);
-        System.out.print("Inserisci lo username del profilo da modificare: ");
-        if (scanner.hasNextLine()) {
-            username = scanner.nextLine().strip();
-        }
+
+        username = get_string("Inserisci lo username del profilo da modificare: ", scanner);
+
+        password =  get_string("Inserisci la password: ", scanner);
+
         System.out.print("Inserisci la password: ");
         if (scanner.hasNextLine()) {
             password = scanner.nextLine().strip();

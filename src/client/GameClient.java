@@ -4,6 +4,7 @@ import client.operations.*;
 
 import java.io.IOException;
 import java.nio.channels.SocketChannel;
+import java.util.List;
 import java.util.Scanner;
 
 
@@ -13,12 +14,14 @@ public class GameClient {
     public String server_host, username;
     public UserStatus u_status;
     public SocketChannel sock = null;
+    public List<String> banlist;
 
-    public GameClient(String host, int port, int timeout){
+    public GameClient(String host, int port, int timeout, List<String> banlist){
         server_host= host;
         this.port = port;
         this.timeout = timeout;
         u_status = UserStatus.NOT_LOGGED;
+        this.banlist = banlist;
     }
 
     //main lifecycle of the GameClient
@@ -32,7 +35,7 @@ public class GameClient {
             Scanner scanner = new Scanner(System.in);
             System.out.print("> ");
             if (scanner.hasNextLine()) {
-                input = scanner.nextLine().strip();
+                input = scanner.nextLine().strip().toLowerCase();
             }
 
             //reacts to the players input
@@ -58,16 +61,19 @@ public class GameClient {
                 op = new LogOutOp(this);
                 break;
             case "register":
-                op = new RegisterOp(this);
+                op = new RegisterOp(this, banlist);
                 break;
-            case "updateCredentials":
+            case "updatecredentials":
                 op = new UpdateCredentialsOp(this);
                 break;
-            case "submitProposal":
+            case "submitproposal":
                 op = new SubmitProposalOp(this);
                 break;
-            case "requestGameInfo":
+            case "requestgameinfo":
                 op = new RequestGameInfoOp(this);
+                break;
+            case "requestleaderboard":
+                op = new RequestLeaderboardOp(this);
                 break;
         }
         return op;
