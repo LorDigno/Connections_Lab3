@@ -94,9 +94,6 @@ public class CurrentPuzzle{
         return out;
     }
 
-    public String
-
-    @Override
     public String toString() {
         String puzzle = "";
         puzzle += "Tempo Rimasto: " + time_left + "ms\n";
