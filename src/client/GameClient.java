@@ -75,6 +75,9 @@ public class GameClient {
             case "requestleaderboard":
                 op = new RequestLeaderboardOp(this);
                 break;
+            case "requestplayerstats":
+                op = new RequestPlayerStatsOp(this);
+                break;
         }
         return op;
     }
