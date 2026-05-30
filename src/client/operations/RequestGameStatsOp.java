@@ -10,7 +10,7 @@ public class RequestGameStatsOp extends Operation{
 
     public RequestGameStatsOp(GameClient game){
         this.game = game;
-        name = "requestOperation";
+        name = "requestGameStats";
     }
 
     @Override

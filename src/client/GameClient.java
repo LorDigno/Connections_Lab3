@@ -26,14 +26,13 @@ public class GameClient {
 
     //main lifecycle of the GameClient
     public void launch(){
-        //prime info sul gioco
-        System.out.println("Benvenuto in connections");
 
         while(true){
             //get the player's input
             String input = "";
             Scanner scanner = new Scanner(System.in);
             System.out.print("> ");
+
             if (scanner.hasNextLine()) {
                 input = scanner.nextLine().strip().toLowerCase();
             }
@@ -68,6 +67,9 @@ public class GameClient {
                 break;
             case "requestgameinfo":
                 op = new RequestGameInfoOp(this);
+                break;
+            case "requestgamestats":
+                op = new RequestGameStatsOp(this);
                 break;
             case "requestleaderboard":
                 op = new RequestLeaderboardOp(this);
