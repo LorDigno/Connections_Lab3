@@ -110,5 +110,11 @@ public class ClientJsonUtils {
         return json.toString();
     }
 
+    public static String get_requestPlayerStats_message(){
+        JsonObject json = new JsonObject();
+        json.addProperty("operation", "requestPlayerStats");
+        return json.toString();
+    }
+
 }
 
