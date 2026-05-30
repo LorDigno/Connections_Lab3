@@ -38,14 +38,10 @@ public class LogInOp extends Operation {
         //chiedo all'utente le sue credenziali
         String password = "", username = "";
         Scanner scanner = new Scanner(System.in);
-        System.out.print("Inserisci lo username con cui accedere: ");
-        if (scanner.hasNextLine()) {
-            username = scanner.nextLine().strip();
-        }
-        System.out.print("Inserisci la password: ");
-        if (scanner.hasNextLine()) {
-            password = scanner.nextLine().strip();
-        }
+
+        username = get_string("Inserisci lo username con cui accedere: ", scanner);
+
+        password = get_string("Inserisci la password: ", scanner);
 
         //temporaneo, se il login non va a buon fine lo levo in digest
         game.username = username;

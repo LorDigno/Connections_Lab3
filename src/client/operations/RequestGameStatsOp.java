@@ -6,11 +6,11 @@ import client.UserStatus;
 
 import java.util.Scanner;
 
-public class RequestGameInfoOp extends Operation{
+public class RequestGameStatsOp extends Operation{
 
-    public RequestGameInfoOp(GameClient game){
+    public RequestGameStatsOp(GameClient game){
         this.game = game;
-        this.name = "requestGameInfo";
+        name = "requestOperation";
     }
 
     @Override
@@ -25,15 +25,13 @@ public class RequestGameInfoOp extends Operation{
 
     @Override
     public String payload() {
-        //chiedo all'utente l'id della partita di cui recuperare le stats
+        //chiedo all'utente l'id della partita da mostrare
         Scanner scanner = new Scanner(System.in);
 
-        int id = -1;
+        int id = get_int("Inserisci l'id del puzzle da vedere " +
+                "(-1 per la partita corrente): ", scanner);
 
-        id = get_int("Inserisci l'id del puzzle di cui mostrare" +
-                " le statistiche (-1 per la partita corrente): ", scanner);
-
-        return ClientJsonUtils.get_requestGameInfo_message(id);
+        return ClientJsonUtils.get_requestGameStats_message(id);
     }
 
     @Override
@@ -45,11 +43,12 @@ public class RequestGameInfoOp extends Operation{
         String desc = ClientJsonUtils.get_description(response);
         switch(response_status){
             case 0:
-                System.out.println("Ottenute le informazioni sul puzzle\n" + desc);
+                System.out.println("Ottenute le statistiche sul puzzle\n" + desc);
                 break;
 
             case -1:
-                System.out.println("Errore di comunicazione durante il recupero del puzzle");
+                System.out.println("Errore di comunicazione durante il recupero " +
+                        "delle statistiche sul puzzle");
                 break;
 
             default:
@@ -57,4 +56,5 @@ public class RequestGameInfoOp extends Operation{
                 System.out.println("Errore [" + response_status +"]\n\t" + desc);
         }
     }
+
 }

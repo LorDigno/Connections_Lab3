@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 
 public class ClientMain {
@@ -22,12 +23,13 @@ public class ClientMain {
             int port = Integer.parseInt(props.getProperty("port"));
             int timeout = Integer.parseInt(props.getProperty("timeout"));
             String unit = props.getProperty("time_unit");
+            List<String> banlist = List.of(props.getProperty("banlist").split(";"));
 
             reader.close();
             //fine parsing
 
             //inizializza il GameClient e lo lancia.
-            GameClient game = new GameClient(host, port, timeout);
+            GameClient game = new GameClient(host, port, timeout, banlist);
             game.launch();
         } catch (FileNotFoundException ex) {
             System.err.println("Config.properties file not found");

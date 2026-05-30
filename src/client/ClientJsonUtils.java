@@ -94,5 +94,21 @@ public class ClientJsonUtils {
         return json.toString();
     }
 
+    //rende il messaggio di requestGameInfo
+    public static String get_requestGameStats_message(int id){
+        JsonObject json = new JsonObject();
+        json.addProperty("operation", "requestGameStats");
+        json.addProperty("gameId", id);
+        return json.toString();
+    }
+
+    public static String get_requestLeaderboard_message(String player_name, int num){
+        JsonObject json = new JsonObject();
+        json.addProperty("operation", "requestLeaderboard");
+        json.addProperty("playerName", player_name);
+        json.addProperty("topPlayers", num);
+        return json.toString();
+    }
+
 }
 
