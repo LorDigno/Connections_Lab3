@@ -16,7 +16,7 @@ public class LogOutOp extends Operation { ;
             System.out.println("---\tDevi aver fatto un accesso prima di poterti disconnettere");
             return false;
         }
-        if(game.sock == null){
+        if(game.tcp_sock == null){
             System.err.println("### Invio senza connessione prestabilita in logout");
 
             //sistemo lo stato del GameClient
@@ -40,7 +40,7 @@ public class LogOutOp extends Operation { ;
 
     @Override
     public void digest(String response) {
-        int response_status = ClientJsonUtils.get_status(response, name);
+        int response_status = ClientJsonUtils.get_int(response, "status", name);
 
         switch (response_status) {
             case 0:

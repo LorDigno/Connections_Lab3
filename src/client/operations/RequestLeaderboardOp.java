@@ -24,25 +24,20 @@ public class RequestLeaderboardOp extends Operation {
     }
 
     @Override
-    public String payload() {
-        //chiedo all'utente l'id della partita da mostrare
-        Scanner scanner = new Scanner(System.in);
-
+    public String payload() throws InterruptedException{
         String in = "", user = "none";
         int num = 1;
 
         while(true){
             System.out.print("Vuoi vedere un utente specifico? (y/n):");
-            if (scanner.hasNextLine()) {
-                in = scanner.nextLine().toLowerCase();
-            }
+            in = game.get_input();
 
             if(in.equals("y")){
-               user = get_string("Inserisci lo username dell'utente: ", scanner);
+               user = get_string("Inserisci lo username dell'utente: ");
                break;
             }
             if(in.equals("n")){
-                num = get_int("Il numero di utenti da mostrare (0 per tutti): ", scanner);
+                num = get_int("Il numero di utenti da mostrare (0 per tutti): ");
                 break;
             }
 
@@ -57,7 +52,7 @@ public class RequestLeaderboardOp extends Operation {
 
     @Override
     public void digest(String response) {
-        int response_status = ClientJsonUtils.get_status(response, name);
+        int response_status = ClientJsonUtils.get_int(response, "status", name);
         String desc = ClientJsonUtils.get_description(response);
         switch(response_status){
             case 0:

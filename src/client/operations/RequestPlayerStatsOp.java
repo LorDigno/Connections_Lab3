@@ -8,7 +8,7 @@ public class RequestPlayerStatsOp extends Operation{
 
     public RequestPlayerStatsOp(GameClient game){
         this.game = game;
-        name = "RequestPlayerStats";
+        name = "requestPlayerStats";
     }
 
     @Override
@@ -31,7 +31,7 @@ public class RequestPlayerStatsOp extends Operation{
 
     @Override
     public void digest(String response) {
-        int response_status = ClientJsonUtils.get_status(response, name);
+        int response_status = ClientJsonUtils.get_int(response, "status", name);
         String desc = ClientJsonUtils.get_description(response);
         switch(response_status){
             case 0:

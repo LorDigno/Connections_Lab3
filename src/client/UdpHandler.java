@@ -1,41 +1,54 @@
 package client;
 
 import java.io.IOException;
-import java.net.*;
 import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.DatagramChannel;
-import java.nio.channels.MembershipKey;
 import java.nio.charset.StandardCharsets;
-import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class UdpHandler implements Runnable{
-    private int port, timeout;
+    private DatagramChannel udp_sock;
+    private AtomicBoolean interrupt;
     private Thread game;
 
-    public UdpHandler(int port, int timeout, Thread game){
-        this.port = port;
+
+
+    public UdpHandler(DatagramChannel udp_sock, AtomicBoolean interrupt, Thread game){
+        this.udp_sock = udp_sock;
+        this.interrupt = interrupt;
         this.game = game;
-        this.timeout = timeout;
     }
 
     @Override
-    public void run() {
-        try(DatagramChannel sock = DatagramChannel.open()){
-            //faccio il binding alla porta
-            InetSocketAddress ad = new InetSocketAddress(port);
-            sock.bind(ad);
+    public void run(){
+        //alloco il bytebuffer
+        ByteBuffer buffer = ByteBuffer.allocate(4096);
 
-            String notification = "";
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
+        while(true){
+            try {
+                //preparo la scrittura
+                buffer.clear();
 
-            while(true){
+                udp_sock.receive(buffer);
 
+                //preparo la lettura
+                buffer.flip();
+
+                // Decodifica direttamente il buffer in una stringa
+                String messaggio = StandardCharsets.US_ASCII.decode(buffer).toString();
+                System.out.println(messaggio + "\n***Operazioni in sospeso annullate");
+
+                interrupt.set(true);
+                game.interrupt();
+            }catch(AsynchronousCloseException e) {
+                //il client ha fatto il logout o il reset, va terminato il thread
+                break;
+            }catch (IOException e){
+                System.err.println("Errore di IO alla recezione di una notifica");
             }
-        }catch (SocketException e){
-            System.err.println("Problemi di creazione del socket udp per le notifiche");
-            System.exit(1);
-        }catch (IOException e){
-            System.err.println("Problemi di ricezione udp per le notifiche");
         }
+
+
     }
 }

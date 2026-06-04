@@ -6,8 +6,11 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class ClientMain {
@@ -24,25 +27,25 @@ public class ClientMain {
 
             String host = props.getProperty("host");
             int tcp_port = Integer.parseInt(props.getProperty("tcp_port"));
-            int udp_port = Integer.parseInt(props.getProperty("udp_port"));
             int timeout = Integer.parseInt(props.getProperty("timeout"));
             List<String> banlist = List.of(props.getProperty("banlist").split(";"));
 
             reader.close();
             //fine parsing
 
-            //inizializza l'handler udp delle notifiche
-            ExecutorService handler = Executors.newSingleThreadExecutor();
-            handler.submit(new UdpHandler(udp_port, timeout, Thread.currentThread()));
+            //costrutti di sincronizzazione dell'input
+            BlockingQueue<String> queue = new LinkedBlockingDeque<String>();
+            AtomicBoolean rejected = new AtomicBoolean(false);
+
+            //inizializza l'InputDaemon
+            Thread input_daemon = new Thread(new InputDaemon(queue, rejected));
+            input_daemon.setDaemon(true);
+            input_daemon.start();
 
             //inizializza il GameClient e lo lancia.
-            GameClient game = new GameClient(host, tcp_port, timeout, banlist);
+            GameClient game = new GameClient(host, tcp_port, timeout, banlist, queue, rejected);
             System.out.println("Benvenuto in connections");
             game.launch();
-
-            //terminazione dell'handler
-            //vado direttamente di shutdownNow perchè è in while(true)
-            handler.shutdownNow();
 
         } catch (FileNotFoundException ex) {
             System.err.println("Config.properties file not found");

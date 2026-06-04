@@ -5,7 +5,6 @@ import client.GameClient;
 import client.UserStatus;
 
 import java.nio.channels.SocketChannel;
-import java.util.Scanner;
 
 public class UpdateCredentialsOp extends Operation {
 
@@ -18,7 +17,7 @@ public class UpdateCredentialsOp extends Operation {
     @Override
     public boolean checks(){
         //se non sono loggato non ho una connessione tcp aperta
-        if(game.u_status == UserStatus.NOT_LOGGED || game.sock == null){
+        if(game.u_status == UserStatus.NOT_LOGGED || game.tcp_sock == null){
             clear = true;
 
             //creo un socketChannel temporaneo da richiudere in digest e on_fail
@@ -27,37 +26,27 @@ public class UpdateCredentialsOp extends Operation {
                 return false;
             }
 
-            game.sock = sock;
+            game.tcp_sock = sock;
         }
         return true;
     }
 
     @Override
-    public String payload() {
+    public String payload() throws InterruptedException{
         //chiedo all'utente i dati dell'account che vuole cambiare
         String password = "", username = "";
-        Scanner scanner = new Scanner(System.in);
 
-        username = get_string("Inserisci lo username del profilo da modificare: ", scanner);
+        username = get_string("Inserisci lo username del profilo da modificare: ");
 
-        password =  get_string("Inserisci la password: ", scanner);
-
-        System.out.print("Inserisci la password: ");
-        if (scanner.hasNextLine()) {
-            password = scanner.nextLine().strip();
-        }
+        password =  get_string("Inserisci la password: ");
 
         //chiedo all'utente i dati nuovi
         String new_password = "", new_username = "";
         while(true){
             System.out.print("Inserisci lo username nuovo (o solo invio per lasciarlo invariato): ");
-            if (scanner.hasNextLine()) {
-                new_username = scanner.nextLine().strip();
-            }
+            new_username = game.get_input();
             System.out.print("Inserisci la password nuova (o solo invio per lasciarlo invariata): ");
-            if (scanner.hasNextLine()) {
-                new_password = scanner.nextLine().strip();
-            }
+            new_password = game.get_input();
 
             if(!new_password.equals("") || !new_username.equals("")){
                 break;
@@ -78,7 +67,7 @@ public class UpdateCredentialsOp extends Operation {
 
     @Override
     public void digest(String response) {
-        int response_status = ClientJsonUtils.get_status(response, name);
+        int response_status = ClientJsonUtils.get_int(response, "status", name);
         String desc = ClientJsonUtils.get_description(response);
         switch(response_status){
             case 0:

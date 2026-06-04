@@ -5,10 +5,8 @@ import client.GameClient;
 import client.UserStatus;
 
 import java.nio.channels.SocketChannel;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Scanner;
-import java.util.Set;
 
 public class RegisterOp extends Operation {
     private String user;
@@ -24,7 +22,7 @@ public class RegisterOp extends Operation {
     @Override
     public boolean checks(){
         //se non sono loggato non ho una connessione tcp aperta
-        if(game.u_status == UserStatus.NOT_LOGGED || game.sock == null){
+        if(game.u_status == UserStatus.NOT_LOGGED || game.tcp_sock == null){
             clear = true;
 
             //creo un socketChannel temporaneo da richiudere in digest e on_fail
@@ -33,19 +31,19 @@ public class RegisterOp extends Operation {
                 return false;
             }
 
-            game.sock = sock;
+            game.tcp_sock = sock;
         }
         return true;
     }
 
     @Override
-    public String payload() {
+    public String payload() throws InterruptedException{
         //chiedo all'utente i dati con cui si vuole registare
         String password = "", username = "";
 
         Scanner scanner = new Scanner(System.in);
         while(true){
-            username = get_string("Inserisci lo username con cui ti vuoi registrare: ", scanner);
+            username = get_string("Inserisci lo username con cui ti vuoi registrare: ");
 
             if(!banned_users.contains(username)){
                 break;
@@ -54,7 +52,7 @@ public class RegisterOp extends Operation {
             System.out.println("--- Lo username: +\""+username+"\" non è valido");
         }
 
-        password = get_string("Inserisci la password: ", scanner);
+        password = get_string("Inserisci la password: ");
 
         this.user = username;
 
@@ -71,7 +69,7 @@ public class RegisterOp extends Operation {
 
     @Override
     public void digest(String response) {
-        int response_status = ClientJsonUtils.get_status(response, name);
+        int response_status = ClientJsonUtils.get_int(response, "status", name);
         switch (response_status) {
             case 0:
                 System.out.println("Registrazione dell'utente: \"" + user + "\" completata con " +

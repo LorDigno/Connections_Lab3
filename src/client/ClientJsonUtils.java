@@ -1,6 +1,5 @@
 package client;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -17,13 +16,14 @@ public class ClientJsonUtils {
         return json.get("description").getAsString();
     }
 
-    public static int get_status(String response, String name){
+    public static int get_int(String response, String property, String op_name){
         JsonObject json = JsonParser.parseString(response).getAsJsonObject();
-        if(!json.get("operation").getAsString().equals(name)){
+        if(!json.get("operation").getAsString().equals(op_name)){
             return -1;
         }
 
-        return json.get("status").getAsInt();
+
+        return json.get(property).getAsInt();
     }
 
     //rende il messaggio di login date le credenziali
