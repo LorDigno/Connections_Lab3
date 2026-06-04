@@ -36,7 +36,6 @@ public class UpdateCredentialsOp extends Operation {
     public String payload() throws InterruptedException{
         //chiedo all'utente i dati dell'account che vuole cambiare
         String password = "", username = "";
-        Scanner scanner = new Scanner(System.in);
 
         username = get_string("Inserisci lo username del profilo da modificare: ");
 
@@ -46,13 +45,9 @@ public class UpdateCredentialsOp extends Operation {
         String new_password = "", new_username = "";
         while(true){
             System.out.print("Inserisci lo username nuovo (o solo invio per lasciarlo invariato): ");
-            if (scanner.hasNextLine()) {
-                new_username = scanner.nextLine().strip();
-            }
+            new_username = game.get_input();
             System.out.print("Inserisci la password nuova (o solo invio per lasciarlo invariata): ");
-            if (scanner.hasNextLine()) {
-                new_password = scanner.nextLine().strip();
-            }
+            new_password = game.get_input();
 
             if(!new_password.equals("") || !new_username.equals("")){
                 break;
@@ -73,7 +68,7 @@ public class UpdateCredentialsOp extends Operation {
 
     @Override
     public void digest(String response) {
-        int response_status = ClientJsonUtils.get_status(response, name);
+        int response_status = ClientJsonUtils.get_int(response, "status", name);
         String desc = ClientJsonUtils.get_description(response);
         switch(response_status){
             case 0:

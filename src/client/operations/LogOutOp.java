@@ -40,7 +40,7 @@ public class LogOutOp extends Operation { ;
 
     @Override
     public void digest(String response) {
-        int response_status = ClientJsonUtils.get_status(response, name);
+        int response_status = ClientJsonUtils.get_int(response, "status", name);
 
         switch (response_status) {
             case 0:

@@ -2,9 +2,12 @@ package client.operations;
 
 import client.ClientJsonUtils;
 import client.GameClient;
+import client.UdpHandler;
 import client.UserStatus;
 
 import java.io.*;
+import java.net.InetSocketAddress;
+import java.nio.channels.DatagramChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Scanner;
 
@@ -37,7 +40,6 @@ public class LogInOp extends Operation {
     public String payload() throws InterruptedException{
         //chiedo all'utente le sue credenziali
         String password = "", username = "";
-        Scanner scanner = new Scanner(System.in);
 
         username = get_string("Inserisci lo username con cui accedere: ");
 
@@ -60,7 +62,7 @@ public class LogInOp extends Operation {
         SocketChannel sock = game.sock;
         String username = game.username;
 
-        int response_status = ClientJsonUtils.get_status(response, name);
+        int response_status = ClientJsonUtils.get_int(response, "status", name);
         String desc = ClientJsonUtils.get_description(response);
 
         if (response_status == 0) {
@@ -68,6 +70,25 @@ public class LogInOp extends Operation {
             //sock e username sono già associati al GameClient
             System.out.println("Accesso eseguito con successo, benvenuto " + username + " !!\n" +
                     "E' ora di iniziare una partita!!!\n\n" + desc);
+
+            //inizializzazione del thread in ascolto per udp
+            int udp_port = ClientJsonUtils.get_int(response, "udpPort", "login");
+
+            DatagramChannel udp_sock = null;
+            while(udp_sock == null) {
+                try {
+                    InetSocketAddress ad = new InetSocketAddress(udp_port);
+                    udp_sock = DatagramChannel.open().bind(ad);
+                } catch (IOException e) {
+                    //retry
+                    udp_sock = null;
+                }
+            }
+
+            game.udp_thread = new Thread(new UdpHandler(udp_sock, game.reject_input));
+            game.udp_thread.start();
+
+            //fatto tutto
             game.u_status = UserStatus.LOGGED_IN;
             return;
         }

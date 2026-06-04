@@ -26,7 +26,6 @@ public class RequestGameStatsOp extends Operation{
     @Override
     public String payload() throws InterruptedException{
         //chiedo all'utente l'id della partita da mostrare
-        Scanner scanner = new Scanner(System.in);
 
         int id = get_int("Inserisci l'id del puzzle da vedere " +
                 "(-1 per la partita corrente): ");
@@ -39,7 +38,7 @@ public class RequestGameStatsOp extends Operation{
 
     @Override
     public void digest(String response) {
-        int response_status = ClientJsonUtils.get_status(response, name);
+        int response_status = ClientJsonUtils.get_int(response, "status", name);
         String desc = ClientJsonUtils.get_description(response);
         switch(response_status){
             case 0:

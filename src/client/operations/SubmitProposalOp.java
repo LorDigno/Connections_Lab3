@@ -28,7 +28,6 @@ public class SubmitProposalOp extends Operation{
     @Override
     public String payload() throws InterruptedException{
         //chiedo all'utente le parole da proporre
-        Scanner scanner = new Scanner(System.in);
         System.out.print("Inserisci le parole che compongono la tua proposta\n");
 
         //prendo le 4 parole
@@ -54,7 +53,7 @@ public class SubmitProposalOp extends Operation{
 
     @Override
     public void digest(String response) {
-        int response_status = ClientJsonUtils.get_status(response, name);
+        int response_status = ClientJsonUtils.get_int(response, "status", name);
         String desc = ClientJsonUtils.get_description(response);
 
         switch(response_status){

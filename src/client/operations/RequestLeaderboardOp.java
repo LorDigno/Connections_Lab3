@@ -25,9 +25,6 @@ public class RequestLeaderboardOp extends Operation {
 
     @Override
     public String payload() throws InterruptedException{
-        //chiedo all'utente l'id della partita da mostrare
-        Scanner scanner = new Scanner(System.in);
-
         String in = "", user = "none";
         int num = 1;
 
@@ -55,7 +52,7 @@ public class RequestLeaderboardOp extends Operation {
 
     @Override
     public void digest(String response) {
-        int response_status = ClientJsonUtils.get_status(response, name);
+        int response_status = ClientJsonUtils.get_int(response, "status", name);
         String desc = ClientJsonUtils.get_description(response);
         switch(response_status){
             case 0:

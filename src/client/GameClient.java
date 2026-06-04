@@ -1,5 +1,4 @@
 package client;
-
 import client.operations.*;
 
 import java.io.IOException;
@@ -17,8 +16,9 @@ public class GameClient {
     public UserStatus u_status;
     public SocketChannel sock = null;
     public List<String> banlist;
-    private AtomicBoolean reject_input;
+    public AtomicBoolean reject_input;
     private BlockingQueue<String> input_queue;
+    public Thread udp_thread;
 
     public GameClient(String host, int port, int timeout, List<String> banlist, BlockingQueue<String> input_queue, AtomicBoolean reject_input){
         server_host= host;

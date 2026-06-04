@@ -1,41 +1,50 @@
 package client;
 
+import com.google.gson.JsonObject;
+
 import java.io.IOException;
-import java.net.*;
+import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
-import java.nio.channels.MembershipKey;
+import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class UdpHandler implements Runnable{
-    private int port, timeout;
-    private Thread game;
+    private DatagramChannel udp_sock;
+    private AtomicBoolean interrupt;
 
-    public UdpHandler(int port, int timeout, Thread game){
-        this.port = port;
-        this.game = game;
-        this.timeout = timeout;
+
+
+    public UdpHandler(DatagramChannel udp_sock, AtomicBoolean interrupt){
+        this.udp_sock = udp_sock;
+        this.interrupt = interrupt;
     }
 
     @Override
-    public void run() {
-        try(DatagramChannel sock = DatagramChannel.open()){
-            //faccio il binding alla porta
-            InetSocketAddress ad = new InetSocketAddress(port);
-            sock.bind(ad);
+    public void run(){
+        //alloco il bytebuffer
+        ByteBuffer buffer = ByteBuffer.allocate(4096);
 
-            String notification = "";
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
-
+        try{
             while(true){
+                //preparo la scrittura
+                buffer.clear();
 
+                udp_sock.receive(buffer);
+
+                //preparo la lettura
+                buffer.flip();
+
+                // Decodifica direttamente il buffer in una stringa
+                String messaggio = StandardCharsets.US_ASCII.decode(buffer).toString();
+                System.out.println(messaggio);
+
+                interrupt.set(true);
             }
-        }catch (SocketException e){
-            System.err.println("Problemi di creazione del socket udp per le notifiche");
-            System.exit(1);
         }catch (IOException e){
-            System.err.println("Problemi di ricezione udp per le notifiche");
+            System.err.println("Errore di IO alla recezione di una notifica");
         }
+
     }
 }

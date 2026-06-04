@@ -5,10 +5,8 @@ import client.GameClient;
 import client.UserStatus;
 
 import java.nio.channels.SocketChannel;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Scanner;
-import java.util.Set;
 
 public class RegisterOp extends Operation {
     private String user;
@@ -71,7 +69,7 @@ public class RegisterOp extends Operation {
 
     @Override
     public void digest(String response) {
-        int response_status = ClientJsonUtils.get_status(response, name);
+        int response_status = ClientJsonUtils.get_int(response, "status", name);
         switch (response_status) {
             case 0:
                 System.out.println("Registrazione dell'utente: \"" + user + "\" completata con " +
