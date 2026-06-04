@@ -22,7 +22,8 @@ public class ClientJsonUtils {
             return -1;
         }
 
-        return json.get("status").getAsInt();
+
+        return json.get(property).getAsInt();
     }
 
     //rende il messaggio di login date le credenziali

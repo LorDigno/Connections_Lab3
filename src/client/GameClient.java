@@ -2,9 +2,9 @@ package client;
 import client.operations.*;
 
 import java.io.IOException;
+import java.nio.channels.DatagramChannel;
 import java.nio.channels.SocketChannel;
 import java.util.List;
-import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -14,11 +14,11 @@ public class GameClient {
     public int port, timeout;
     public String server_host, username;
     public UserStatus u_status;
-    public SocketChannel sock = null;
+    public SocketChannel tcp_sock = null;
     public List<String> banlist;
     public AtomicBoolean reject_input;
     private BlockingQueue<String> input_queue;
-    public Thread udp_thread;
+    public DatagramChannel udp_sock;
 
     public GameClient(String host, int port, int timeout, List<String> banlist, BlockingQueue<String> input_queue, AtomicBoolean reject_input){
         server_host= host;
@@ -54,6 +54,7 @@ public class GameClient {
             reject_input.set(false);
         }
 
+        launch();
     }
 
     //capisce che operazione fare dato l'input
@@ -106,15 +107,21 @@ public class GameClient {
     public void reset() {
         //ciudo la connessione tcp
         try {
-            sock.close();
+            if(tcp_sock != null){
+                tcp_sock.close();
+            }
+            if(udp_sock != null){
+                udp_sock.close();
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
         //reset del GameClient
         u_status = UserStatus.NOT_LOGGED;
-        sock = null;
+        tcp_sock = null;
         username = null;
+        udp_sock = null;
     }
 
     private void quit(){

@@ -22,7 +22,7 @@ public class RegisterOp extends Operation {
     @Override
     public boolean checks(){
         //se non sono loggato non ho una connessione tcp aperta
-        if(game.u_status == UserStatus.NOT_LOGGED || game.sock == null){
+        if(game.u_status == UserStatus.NOT_LOGGED || game.tcp_sock == null){
             clear = true;
 
             //creo un socketChannel temporaneo da richiudere in digest e on_fail
@@ -31,7 +31,7 @@ public class RegisterOp extends Operation {
                 return false;
             }
 
-            game.sock = sock;
+            game.tcp_sock = sock;
         }
         return true;
     }

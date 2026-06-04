@@ -9,7 +9,6 @@ import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SocketChannel;
-import java.util.Scanner;
 
 public class LogInOp extends Operation {
     //operazione che gestisce la connessione iniziale TCP col server
@@ -32,7 +31,7 @@ public class LogInOp extends Operation {
         }
 
         //da usare in communicate, se non va a buon fine lo tolgo in digest
-        game.sock = sock;
+        game.tcp_sock = sock;
         return true;
     }
 
@@ -59,7 +58,7 @@ public class LogInOp extends Operation {
 
     @Override
     public void digest(String response){
-        SocketChannel sock = game.sock;
+        SocketChannel sock = game.tcp_sock;
         String username = game.username;
 
         int response_status = ClientJsonUtils.get_int(response, "status", name);
@@ -67,7 +66,7 @@ public class LogInOp extends Operation {
 
         if (response_status == 0) {
             //confermo la riuscita del login e cambio status
-            //sock e username sono già associati al GameClient
+            //tcp_sock e username sono già associati al GameClient
             System.out.println("Accesso eseguito con successo, benvenuto " + username + " !!\n" +
                     "E' ora di iniziare una partita!!!\n\n" + desc);
 
@@ -85,8 +84,11 @@ public class LogInOp extends Operation {
                 }
             }
 
-            game.udp_thread = new Thread(new UdpHandler(udp_sock, game.reject_input));
-            game.udp_thread.start();
+            game.udp_sock = udp_sock;
+            Thread udp = new Thread(new UdpHandler(udp_sock, game.reject_input, Thread.currentThread()));
+            udp.start();
+
+
 
             //fatto tutto
             game.u_status = UserStatus.LOGGED_IN;

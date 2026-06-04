@@ -6,9 +6,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.Scanner;
 
 public abstract class Operation{
     public GameClient game;
@@ -39,14 +39,14 @@ public abstract class Operation{
     public abstract String payload() throws InterruptedException;
 
     //invia msg e rende la risposta relativa
-    private String communicate(String msg){
+    private String communicate(String msg) throws InterruptedException{
 
         //dove andrò a immettere la risposta
         String response_msg = "";
 
         //comunicazione col server via NIO
         try{
-            SocketChannel sock = game.sock;
+            SocketChannel sock = game.tcp_sock;
 
             //converto in byte la jsonstring per wrapparlo in un ByteBuffer
             byte[] jsonBytes = msg.getBytes(StandardCharsets.UTF_8);
@@ -85,6 +85,14 @@ public abstract class Operation{
             //converto il buffer in stringa utilizzando l'array sottostante
             in_buffer.flip();
             response_msg = new String(in_buffer.array(), StandardCharsets.UTF_8);
+        }catch(ClosedByInterruptException e){
+            //ho interrotto mentre aspettavo sul socket, questo lo invalida completamente
+            System.err.println("###\tInvalidata la connessione col server, logout forzato");
+            game.reset();
+
+            //propoago l'interruzione al GameClient
+            throw new InterruptedException();
+
         } catch (IOException e) {
             System.err.println("###\tErrore di IO durante la comunicazione al server" + e);
             System.err.println("### Operazione annullata");
