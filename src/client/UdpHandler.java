@@ -1,14 +1,9 @@
 package client;
 
-import com.google.gson.JsonObject;
-
 import java.io.IOException;
-import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousCloseException;
-import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.DatagramChannel;
-import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -30,8 +25,8 @@ public class UdpHandler implements Runnable{
         //alloco il bytebuffer
         ByteBuffer buffer = ByteBuffer.allocate(4096);
 
-        try {
-            while (true) {
+        while(true){
+            try {
                 //preparo la scrittura
                 buffer.clear();
 
@@ -46,12 +41,14 @@ public class UdpHandler implements Runnable{
 
                 interrupt.set(true);
                 game.interrupt();
+            }catch(AsynchronousCloseException e) {
+                //il client ha fatto il logout o il reset, va terminato il thread
+                break;
+            }catch (IOException e){
+                System.err.println("Errore di IO alla recezione di una notifica");
             }
-        }catch(AsynchronousCloseException e) {
-            //il client ha fatto il logout o il reset
-        }catch (IOException e){
-            System.err.println("Errore di IO alla recezione di una notifica");
         }
+
 
     }
 }

@@ -19,6 +19,7 @@ public class GameClient {
     public AtomicBoolean reject_input;
     private BlockingQueue<String> input_queue;
     public DatagramChannel udp_sock;
+    public Thread udp_thread;
 
     public GameClient(String host, int port, int timeout, List<String> banlist, BlockingQueue<String> input_queue, AtomicBoolean reject_input){
         server_host= host;
@@ -33,8 +34,8 @@ public class GameClient {
 
     //main lifecycle of the GameClient
     public void launch(){
-        try {
-            while(true) {
+        while(true) {
+            try{
                 if(Thread.currentThread().isInterrupted()){
                     throw new InterruptedException();
                 }
@@ -48,13 +49,11 @@ public class GameClient {
                     //esegue l'azione
                     op.execute();
                 }
+            }catch(InterruptedException e){
+                input_queue.clear();
+                reject_input.set(false);
             }
-        }catch(InterruptedException e){
-            input_queue.clear();
-            reject_input.set(false);
         }
-
-        launch();
     }
 
     //capisce che operazione fare dato l'input
@@ -112,7 +111,10 @@ public class GameClient {
             }
             if(udp_sock != null){
                 udp_sock.close();
+                udp_thread.join();
             }
+        }catch (InterruptedException e){
+            //teoricamente dopo l'annullamento di tutti i riferimenti subentra il garbage collector
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -122,6 +124,7 @@ public class GameClient {
         tcp_sock = null;
         username = null;
         udp_sock = null;
+        udp_thread = null;
     }
 
     private void quit(){

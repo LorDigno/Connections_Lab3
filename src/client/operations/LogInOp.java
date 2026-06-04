@@ -86,6 +86,7 @@ public class LogInOp extends Operation {
 
             game.udp_sock = udp_sock;
             Thread udp = new Thread(new UdpHandler(udp_sock, game.reject_input, Thread.currentThread()));
+            game.udp_thread = udp;
             udp.start();
 
 
