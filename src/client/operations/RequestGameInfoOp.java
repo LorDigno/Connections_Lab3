@@ -24,14 +24,14 @@ public class RequestGameInfoOp extends Operation{
     }
 
     @Override
-    public String payload() {
+    public String payload() throws InterruptedException{
         //chiedo all'utente l'id della partita di cui recuperare le stats
         Scanner scanner = new Scanner(System.in);
 
         int id = -1;
 
         id = get_int("Inserisci l'id del puzzle di cui mostrare" +
-                " le statistiche (-1 per la partita corrente): ", scanner);
+                " le statistiche (-1 per la partita corrente): ");
 
         return ClientJsonUtils.get_requestGameInfo_message(id);
     }

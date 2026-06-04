@@ -39,13 +39,13 @@ public class RegisterOp extends Operation {
     }
 
     @Override
-    public String payload() {
+    public String payload() throws InterruptedException{
         //chiedo all'utente i dati con cui si vuole registare
         String password = "", username = "";
 
         Scanner scanner = new Scanner(System.in);
         while(true){
-            username = get_string("Inserisci lo username con cui ti vuoi registrare: ", scanner);
+            username = get_string("Inserisci lo username con cui ti vuoi registrare: ");
 
             if(!banned_users.contains(username)){
                 break;
@@ -54,7 +54,7 @@ public class RegisterOp extends Operation {
             System.out.println("--- Lo username: +\""+username+"\" non è valido");
         }
 
-        password = get_string("Inserisci la password: ", scanner);
+        password = get_string("Inserisci la password: ");
 
         this.user = username;
 

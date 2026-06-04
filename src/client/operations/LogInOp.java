@@ -34,14 +34,14 @@ public class LogInOp extends Operation {
     }
 
     @Override
-    public String payload(){
+    public String payload() throws InterruptedException{
         //chiedo all'utente le sue credenziali
         String password = "", username = "";
         Scanner scanner = new Scanner(System.in);
 
-        username = get_string("Inserisci lo username con cui accedere: ", scanner);
+        username = get_string("Inserisci lo username con cui accedere: ");
 
-        password = get_string("Inserisci la password: ", scanner);
+        password = get_string("Inserisci la password: ");
 
         //temporaneo, se il login non va a buon fine lo levo in digest
         game.username = username;

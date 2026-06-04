@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.nio.channels.SocketChannel;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class GameClient {
@@ -15,35 +17,43 @@ public class GameClient {
     public UserStatus u_status;
     public SocketChannel sock = null;
     public List<String> banlist;
+    private AtomicBoolean reject_input;
+    private BlockingQueue<String> input_queue;
 
-    public GameClient(String host, int port, int timeout, List<String> banlist){
+    public GameClient(String host, int port, int timeout, List<String> banlist, BlockingQueue<String> input_queue, AtomicBoolean reject_input){
         server_host= host;
         this.port = port;
         this.timeout = timeout;
         u_status = UserStatus.NOT_LOGGED;
         this.banlist = banlist;
+        this.input_queue = input_queue;
+        this.reject_input = reject_input;
+
     }
 
     //main lifecycle of the GameClient
     public void launch(){
+        try {
+            while(true) {
+                if(Thread.currentThread().isInterrupted()){
+                    throw new InterruptedException();
+                }
 
-        while(true){
-            //get the player's input
-            String input = "";
-            Scanner scanner = new Scanner(System.in);
-            System.out.print("> ");
+                //get the player's input
+                System.out.print("> ");
 
-            if (scanner.hasNextLine()) {
-                input = scanner.nextLine().strip().toLowerCase();
+                //reacts to the players input
+                Operation op = op_choice(get_input());
+                if(op != null){
+                    //esegue l'azione
+                    op.execute();
+                }
             }
-
-            //reacts to the players input
-            Operation op = op_choice(input);
-            if(op != null){
-                //esegue l'azione
-                op.execute();
-            }
+        }catch(InterruptedException e){
+            input_queue.clear();
+            reject_input.set(false);
         }
+
     }
 
     //capisce che operazione fare dato l'input
@@ -88,6 +98,10 @@ public class GameClient {
         return op;
     }
 
+    public String get_input() throws InterruptedException{
+        return input_queue.take();
+    }
+
     //chiude il socketChannel e resetta lo stato del gameClient
     public void reset() {
         //ciudo la connessione tcp
@@ -104,9 +118,14 @@ public class GameClient {
     }
 
     private void quit(){
-        if(this.u_status == UserStatus.LOGGED_IN){
-            System.out.println("Disconnessione automatica per la terminazione del gioco");
-            new LogOutOp(this).execute();
+        try{
+            if(this.u_status == UserStatus.LOGGED_IN){
+                System.out.println("Disconnessione automatica per la terminazione del gioco");
+                new LogOutOp(this).execute();
+            }
+        }
+        catch(InterruptedException e){
+            System.err.println("Interruzione in quit");
         }
 
         System.out.println("\nArrivederci e grazie per aver giocato!!\n");

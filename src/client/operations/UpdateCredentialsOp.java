@@ -33,19 +33,14 @@ public class UpdateCredentialsOp extends Operation {
     }
 
     @Override
-    public String payload() {
+    public String payload() throws InterruptedException{
         //chiedo all'utente i dati dell'account che vuole cambiare
         String password = "", username = "";
         Scanner scanner = new Scanner(System.in);
 
-        username = get_string("Inserisci lo username del profilo da modificare: ", scanner);
+        username = get_string("Inserisci lo username del profilo da modificare: ");
 
-        password =  get_string("Inserisci la password: ", scanner);
-
-        System.out.print("Inserisci la password: ");
-        if (scanner.hasNextLine()) {
-            password = scanner.nextLine().strip();
-        }
+        password =  get_string("Inserisci la password: ");
 
         //chiedo all'utente i dati nuovi
         String new_password = "", new_username = "";

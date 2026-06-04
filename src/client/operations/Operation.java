@@ -15,7 +15,7 @@ public abstract class Operation{
     public String name;
 
     //chiama gli altri metodi
-    public void execute(){
+    public void execute() throws InterruptedException{
         boolean n = checks();
         if(!n){
             return; //sono falliti dei check
@@ -36,7 +36,7 @@ public abstract class Operation{
     public abstract boolean checks();
 
     //creazione del payload della richiesta
-    public abstract String payload();
+    public abstract String payload() throws InterruptedException;
 
     //invia msg e rende la risposta relativa
     private String communicate(String msg){
@@ -125,11 +125,11 @@ public abstract class Operation{
         return sock;
     }
 
-    protected int get_int(String richiesta, Scanner scanner){
+    protected int get_int(String richiesta) throws InterruptedException{
         String in = "";
         int num;
         while(true){
-            in = get_string(richiesta, scanner);
+            in = get_string(richiesta);
             try{
                 num = Integer.parseInt(in);
                 break;
@@ -141,13 +141,11 @@ public abstract class Operation{
         return num;
     }
 
-    protected String get_string(String richiesta, Scanner scanner){
+    protected String get_string(String richiesta) throws InterruptedException{
         String in = "";
         while(true){
             System.out.print(richiesta);
-            if (scanner.hasNextLine()) {
-                in = scanner.nextLine();
-            }
+            in = game.get_input();
             if(!in.equals("")){
                 return in;
             }
