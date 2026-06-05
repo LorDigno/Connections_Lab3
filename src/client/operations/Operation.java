@@ -1,14 +1,13 @@
 package client.operations;
 
+import client.Communication;
 import client.GameClient;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 
 public abstract class Operation{
     public GameClient game;
@@ -42,61 +41,40 @@ public abstract class Operation{
     private String communicate(String msg) throws InterruptedException{
 
         //dove andrò a immettere la risposta
-        String response_msg = "";
+        String response_msg = null;
+        Communication comm_thread = game.comm;
 
         //comunicazione col server via NIO
         try{
-            SocketChannel sock = game.tcp_sock;
-
-            //converto in byte la jsonstring per wrapparlo in un ByteBuffer
-            byte[] jsonBytes = msg.getBytes(StandardCharsets.UTF_8);
-
-            //mi serve un intero per dire al server da quanti byte è composto il payload
-            ByteBuffer out_buffer = ByteBuffer.allocate(4 + jsonBytes.length);
-            out_buffer.putInt(jsonBytes.length);
-            out_buffer.put(jsonBytes);
-            out_buffer.flip();
-
-            //invio
-            while(out_buffer.hasRemaining()){
-                sock.write(out_buffer);
+            if(comm_thread.allow_op.get() % 2 == 0) {
+                //sono negli stati corretti, 0 o 2
+                comm_thread.tcp_queue_in.offer(msg);
+                comm_thread.selector.wakeup();
+                response_msg = comm_thread.tcp_queue_out.take();
             }
+            else{
+                throw new InterruptedException();
+            }
+        } catch(InterruptedException e){
+            //è arrivata la notifica asincrona oppure il server ha chiuso il socket tcp
+            //  controllo che caso è basandomi su interrupted = reject_input
 
-            //ricevo la risposta, prima però devo sapere quanto è lunga in bytes
-            ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
-            while (lengthBuffer.hasRemaining()) {
-                if (sock.read(lengthBuffer) == -1) {
-                    throw new IOException("Connessione chiusa dal server prematuramente");
+            if(game.reject_input.get()){
+                //se è true vuol dire che è arrivata la notifica
+                String ret = null;
+                if(comm_thread.allow_op.get() == 3){
+                    //vuol dire che devo terminare un'operazione lasciata a mezzo ma avviata prima
+                    ret = comm_thread.tcp_queue_out.poll(game.timeout, TimeUnit.MILLISECONDS);
                 }
+
+                //espando l'interruzione GameClient
+                Thread.currentThread().interrupt();
+                return ret;
             }
-            lengthBuffer.flip();
-            int dim = lengthBuffer.getInt();
-
-            //così alloco il buffer di dimensione giusta
-            ByteBuffer in_buffer = ByteBuffer.allocate(dim);
-
-            //ricevo la risposta
-            while (in_buffer.hasRemaining()) {
-                if (sock.read(in_buffer) == -1) {
-                    throw new IOException("Connessione chiusa dal server prematuramente");
-                }
+            else{
+                //qua c'è stato l'errore nel server, va chiuso tutto
+                game.reset();
             }
-
-            //converto il buffer in stringa utilizzando l'array sottostante
-            in_buffer.flip();
-            response_msg = new String(in_buffer.array(), StandardCharsets.UTF_8);
-        }catch(ClosedByInterruptException e){
-            //ho interrotto mentre aspettavo sul socket, questo lo invalida completamente
-            System.err.println("###\tInvalidata la connessione col server, logout forzato");
-            game.reset();
-
-            //propoago l'interruzione al GameClient
-            throw new InterruptedException();
-
-        } catch (IOException e) {
-            System.err.println("###\tErrore di IO durante la comunicazione al server" + e);
-            System.err.println("### Operazione annullata");
-            return null;
         }
 
         return response_msg;

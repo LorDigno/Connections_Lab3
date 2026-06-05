@@ -6,15 +6,18 @@ import java.nio.channels.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Communication implements Runnable {
     private SocketChannel tcp_sock;
     private DatagramChannel udp_sock;
     private Thread game_thread;
     private AtomicBoolean interrupt;
-    private int allow_op;
-    public BlockingQueue<String> tcp_queue;
+    public AtomicInteger allow_op;
+    public BlockingQueue<String> tcp_queue_in, tcp_queue_out;
+    public Selector selector;
 
     public class TCPAttachment {
         public int status;
@@ -27,7 +30,7 @@ public class Communication implements Runnable {
     }
 
     public Communication(SocketChannel tcp_sock, DatagramChannel udp_sock, Thread game_thread
-                            , AtomicBoolean interrupt, BlockingQueue<String> tcp_queue) {
+                            , AtomicBoolean interrupt) {
         this.tcp_sock = tcp_sock;
         this.udp_sock = udp_sock;
         this.game_thread = game_thread;
@@ -38,22 +41,30 @@ public class Communication implements Runnable {
         //flag per impedire al socketChannel di iniziare operazioni dopo le notifiche
         // 0 = non c'è niente a mezzo
         // 1 = è arrivata la notifica e non accetto nuovi invii
-        // 2 = ho un invio iniziato che va concluso
-        allow_op = 0;
+        // 2 = ho un invio iniziato che va concluso, non implica l'arrivo della notifica
+        // 3 = entrambi
+        allow_op = new AtomicInteger(0);
 
         //blockingQueue utilizzata per inviare i payload da GameClient a Communication
         //  ed inviare le risposte da Communication aGameClient
-        this.tcp_queue = tcp_queue;
+        this.tcp_queue_in = new LinkedBlockingQueue<String>();
+        this.tcp_queue_out = new LinkedBlockingQueue<String>();
+
+        //inizializzo
+        try{
+            selector = Selector.open();
+        }catch (IOException e) {
+            System.err.println("#### Problemi d'instaurazione della connessione, operazione annullata");
+            //trovare il modo di comunicarlo al mainThread
+            //tbd
+        }
     }
+
     @Override
     public void run() {
-        Selector selector = null;
         SelectionKey udp_key = null, tcp_key = null;
 
         try {
-            //inizializzo
-            selector = Selector.open();
-
             //inserisco nel selettore i socket in modalità non bloccante
             tcp_sock.configureBlocking(false);
             //solo in read perché l'os da sempre il via libera per la write
@@ -72,14 +83,13 @@ public class Communication implements Runnable {
 
         //loop di select del server
         while (true) {
-            if(!tcp_queue.isEmpty()){
+            if(!tcp_queue_in.isEmpty()){
                 tcp_key.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
             }
 
             //provo a fare la select bloccante
-            //all'inserimento di messaggi in tcp_queue devo fare selector.wakeup che sennò
+            //all'inserimento di messaggi in tcp_queue_in devo fare selector.wakeup che sennò
             //  non se ne accorge.
-            // tbd
             try {
                 selector.select();
             } catch (IOException ex) {
@@ -127,8 +137,10 @@ public class Communication implements Runnable {
             interrupt.set(true);
             game_thread.interrupt();
 
-            if(allow_op == 0){
-                allow_op = 1;
+            if(allow_op.get() == 0){
+                allow_op.set(1);
+            }else if(allow_op.get() == 2){
+                allow_op.set(3);
             }
 
         }catch (IOException e){
@@ -174,15 +186,22 @@ public class Communication implements Runnable {
                         key.attach(null);
 
                         //uso la stessa queue in input come output
-                        tcp_queue.offer(response_msg);
+                        tcp_queue_out.offer(response_msg);
 
                         //ho finito l'operazione a mezzo
-                        allow_op = 0;
+                        allow_op.set(0);
                         key.attach(null);
                     }
                 }
             }
             else if(key.isWritable()){
+                if(allow_op.get() == 1){
+                    //messaggio da non mandare
+                    tcp_queue_in.clear();
+                    key.interestOps(SelectionKey.OP_READ);
+                    return;
+                }
+
                 //estraggo il messaggio dalla queue se non è già stato letto
                 TCPAttachment att = (TCPAttachment) key.attachment();
                 ByteBuffer buffer = null;
@@ -193,12 +212,12 @@ public class Communication implements Runnable {
                 String msg = "";
 
                 //ho agito prima dell'arrivo della notifica
-                allow_op = 2;
+                allow_op.set(2);
 
                 //prima scrittura
                 if(buffer == null){
 
-                    msg = tcp_queue.poll();
+                    msg = tcp_queue_in.poll();
                     if(msg == null){
                         System.err.print("Perso un messaggio da inviare");
                         key.interestOps(SelectionKey.OP_READ);
@@ -239,8 +258,7 @@ public class Communication implements Runnable {
             System.err.println("### Operazione annullata");
 
             //vedi come comunicare il problema al main_thread
-            //tbd
+            game_thread.interrupt();
         }
-
     }
 }

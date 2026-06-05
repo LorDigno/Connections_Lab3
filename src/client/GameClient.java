@@ -19,7 +19,8 @@ public class GameClient {
     public AtomicBoolean reject_input;
     private BlockingQueue<String> input_queue;
     public DatagramChannel udp_sock;
-    public Thread udp_thread;
+    public Thread comm_thread;
+    public Communication comm;
 
     public GameClient(String host, int port, int timeout, List<String> banlist, BlockingQueue<String> input_queue, AtomicBoolean reject_input){
         server_host= host;
