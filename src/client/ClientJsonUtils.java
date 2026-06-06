@@ -11,8 +11,12 @@ import java.util.List;
 public class ClientJsonUtils {
 
     //info sulla risposta come descrizioni d'errore
-    public static String get_description(String response){
+    public static String get_description(String response, String op_name){
         JsonObject json = JsonParser.parseString(response).getAsJsonObject();
+        if(!json.get("operation").getAsString().equals(op_name)){
+            return null;
+        }
+
         return json.get("description").getAsString();
     }
 

@@ -4,8 +4,6 @@ import client.ClientJsonUtils;
 import client.GameClient;
 import client.UserStatus;
 
-import java.nio.channels.SocketChannel;
-
 public class UpdateCredentialsOp extends Operation {
 
     private boolean clear = false;
@@ -66,7 +64,7 @@ public class UpdateCredentialsOp extends Operation {
     @Override
     public void digest(String response) {
         int response_status = ClientJsonUtils.get_int(response, "status", name);
-        String desc = ClientJsonUtils.get_description(response);
+        String desc = ClientJsonUtils.get_description(response, name);
         switch(response_status){
             case 0:
                 System.out.println("Cambio delle credenziali completato con successo");

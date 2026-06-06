@@ -32,7 +32,7 @@ public class RequestPlayerStatsOp extends Operation{
     @Override
     public void digest(String response) {
         int response_status = ClientJsonUtils.get_int(response, "status", name);
-        String desc = ClientJsonUtils.get_description(response);
+        String desc = ClientJsonUtils.get_description(response, name);
         switch(response_status){
             case 0:
                 System.out.println("Ecco le tue statistiche personali \"" + game.username + "\"\n"

@@ -172,16 +172,20 @@ public class Communication implements Runnable {
             buffer.flip();
 
             // Decodifica direttamente il buffer in una stringa
-            String messaggio = StandardCharsets.UTF_8.decode(buffer).toString();
-            System.out.println(messaggio + "\n***Operazioni in sospeso annullate");
+            String response = StandardCharsets.UTF_8.decode(buffer).toString();
+            String messaggio = ClientJsonUtils.get_description(response, "udpPuzzletermination");
 
-            interrupt.set(true);
-            game_thread.interrupt();
+            if(messaggio != null){
+                System.out.println(messaggio + "\n***Operazioni in sospeso annullate");
 
-            if(allow_op.get() == 0){
-                allow_op.set(1);
-            }else if(allow_op.get() == 2){
-                allow_op.set(3);
+                interrupt.set(true);
+                game_thread.interrupt();
+
+                if(allow_op.get() == 0){
+                    allow_op.set(1);
+                }else if(allow_op.get() == 2){
+                    allow_op.set(3);
+                }
             }
 
         }catch (IOException e){

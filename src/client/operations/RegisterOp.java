@@ -4,7 +4,6 @@ import client.ClientJsonUtils;
 import client.GameClient;
 import client.UserStatus;
 
-import java.nio.channels.SocketChannel;
 import java.util.List;
 import java.util.Scanner;
 
@@ -22,7 +21,7 @@ public class RegisterOp extends Operation {
     @Override
     public boolean checks(){
         //se non sono loggato non ho una connessione tcp aperta
-        if(game.u_status == UserStatus.NOT_LOGGED || game.tcp_sock == null){
+        if(game.u_status == UserStatus.NOT_LOGGED || game.comm_thread == null){
             clear = true;
 
             //creo un socketChannel temporaneo da richiudere in digest e on_fail
@@ -80,7 +79,7 @@ public class RegisterOp extends Operation {
 
             default:
                 //comunico all'utente l'errore
-                String desc = ClientJsonUtils.get_description(response);
+                String desc = ClientJsonUtils.get_description(response, name);
                 System.out.println("Errore [" + response_status +"]\n\t" + desc);
         }
 

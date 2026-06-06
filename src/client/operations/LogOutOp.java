@@ -53,7 +53,7 @@ public class LogOutOp extends Operation { ;
 
             default:
                 //comunico all'utente l'errore
-                String desc = ClientJsonUtils.get_description(response);
+                String desc = ClientJsonUtils.get_description(response, name);
                 System.out.println("Errore [" + response_status +"]\n\t" + desc);
         }
 

@@ -6,7 +6,6 @@ import client.UserStatus;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public class SubmitProposalOp extends Operation{
 
@@ -54,7 +53,7 @@ public class SubmitProposalOp extends Operation{
     @Override
     public void digest(String response) {
         int response_status = ClientJsonUtils.get_int(response, "status", name);
-        String desc = ClientJsonUtils.get_description(response);
+        String desc = ClientJsonUtils.get_description(response, name);
 
         switch(response_status){
             case 0:

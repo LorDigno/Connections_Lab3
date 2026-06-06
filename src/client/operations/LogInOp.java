@@ -57,7 +57,7 @@ public class LogInOp extends Operation {
         String username = game.username;
 
         int response_status = ClientJsonUtils.get_int(response, "status", name);
-        String desc = ClientJsonUtils.get_description(response);
+        String desc = ClientJsonUtils.get_description(response, name);
 
         if (response_status == 0) {
             //confermo la riuscita del login e cambio status
