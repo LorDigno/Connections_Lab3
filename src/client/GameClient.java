@@ -14,12 +14,11 @@ public class GameClient {
     public int port, timeout;
     public String server_host, username;
     public UserStatus u_status;
-    public SocketChannel tcp_sock = null;
     public List<String> banlist;
     public AtomicBoolean reject_input;
     private BlockingQueue<String> input_queue;
-    public DatagramChannel udp_sock;
-    public Thread udp_thread;
+    public Thread comm_thread;
+    public Communication comm;
 
     public GameClient(String host, int port, int timeout, List<String> banlist, BlockingQueue<String> input_queue, AtomicBoolean reject_input){
         server_host= host;
@@ -106,12 +105,11 @@ public class GameClient {
     public void reset() {
         //ciudo la connessione tcp
         try {
-            if(tcp_sock != null){
-                tcp_sock.close();
+            if(comm != null){
+                comm.selector.close();
             }
-            if(udp_sock != null){
-                udp_sock.close();
-                udp_thread.join();
+            if(comm_thread != null){
+                comm_thread.join();
             }
         }catch (InterruptedException e){
             //teoricamente dopo l'annullamento di tutti i riferimenti subentra il garbage collector
@@ -121,10 +119,9 @@ public class GameClient {
 
         //reset del GameClient
         u_status = UserStatus.NOT_LOGGED;
-        tcp_sock = null;
         username = null;
-        udp_sock = null;
-        udp_thread = null;
+        comm = null;
+        comm_thread = null;
     }
 
     private void quit(){

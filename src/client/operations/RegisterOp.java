@@ -26,12 +26,10 @@ public class RegisterOp extends Operation {
             clear = true;
 
             //creo un socketChannel temporaneo da richiudere in digest e on_fail
-            SocketChannel sock = connessione();
-            if(sock == null){
+            boolean sock = connessione();
+            if(!sock){
                 return false;
             }
-
-            game.tcp_sock = sock;
         }
         return true;
     }
