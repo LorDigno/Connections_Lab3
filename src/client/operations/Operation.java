@@ -6,6 +6,7 @@ import client.GameClient;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.nio.channels.DatagramChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.TimeUnit;
 
@@ -87,7 +88,7 @@ public abstract class Operation{
     public abstract void digest(String response);
 
     //instaura una connessione tcp col server del GameClient
-    protected SocketChannel connessione(){
+    protected boolean connessione(){
         //provo ad instaurare la connessione al server
         int port = game.port;
         String host = game.server_host;
@@ -97,18 +98,24 @@ public abstract class Operation{
             InetSocketAddress socketAddress = new InetSocketAddress(host, port);
             //Avvio la connessione
             sock.connect(socketAddress);
-            //specifico il timeout per le successive operazioni
-            sock.socket().setSoTimeout(game.timeout);
-
         }catch (UnknownHostException e){
             System.err.println("###\tProblemi di risoluzione dns del server" + e);
-            return null;
+            return false;
         }catch (IOException e) {
             System.err.println("###\tConnessione rifiutata dal server o andata in timeout" + e);
-            return null;
+            return false;
         }
 
-        return sock;
+        //se sono qua il socket tcp è stato instanziato.
+        //va inizializzato il thread di comunicazione, per ora senza DatagramChannel associato.
+        //sarà dopo ,se il login ha successo, ad essere aggiunto.
+
+        Communication comm = new Communication(sock, Thread.currentThread(), game.reject_input);
+        game.comm_thread =  new Thread(comm);
+        game.comm = comm;
+        game.comm_thread.start();
+
+        return true;
     }
 
     protected int get_int(String richiesta) throws InterruptedException{

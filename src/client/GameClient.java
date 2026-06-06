@@ -14,11 +14,9 @@ public class GameClient {
     public int port, timeout;
     public String server_host, username;
     public UserStatus u_status;
-    public SocketChannel tcp_sock = null;
     public List<String> banlist;
     public AtomicBoolean reject_input;
     private BlockingQueue<String> input_queue;
-    public DatagramChannel udp_sock;
     public Thread comm_thread;
     public Communication comm;
 

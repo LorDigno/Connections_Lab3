@@ -17,16 +17,14 @@ public class UpdateCredentialsOp extends Operation {
     @Override
     public boolean checks(){
         //se non sono loggato non ho una connessione tcp aperta
-        if(game.u_status == UserStatus.NOT_LOGGED || game.tcp_sock == null){
+        if(game.u_status == UserStatus.NOT_LOGGED || game.comm_thread == null){
             clear = true;
 
             //creo un socketChannel temporaneo da richiudere in digest e on_fail
-            SocketChannel sock = connessione();
-            if(sock == null){
+            boolean sock = connessione();
+            if(!sock){
                 return false;
             }
-
-            game.tcp_sock = sock;
         }
         return true;
     }

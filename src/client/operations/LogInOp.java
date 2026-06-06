@@ -25,13 +25,11 @@ public class LogInOp extends Operation {
             return false;
         }
 
-        SocketChannel sock = connessione();
-        if(sock == null){
+        boolean sock = connessione();
+        if(!sock){
             return false;
         }
 
-        //da usare in communicate, se non va a buon fine lo tolgo in digest
-        game.tcp_sock = sock;
         return true;
     }
 
@@ -58,7 +56,6 @@ public class LogInOp extends Operation {
 
     @Override
     public void digest(String response){
-        SocketChannel sock = game.tcp_sock;
         String username = game.username;
 
         int response_status = ClientJsonUtils.get_int(response, "status", name);
@@ -84,23 +81,12 @@ public class LogInOp extends Operation {
                 }
             }
 
-            game.udp_sock = udp_sock;
-            Thread udp = new Thread(new UdpHandler(udp_sock, game.reject_input, Thread.currentThread()));
-            game.udp_thread = udp;
-            udp.start();
-
-
+            //aggiungo il channel di ricezione delle modifiche
+            game.comm.add_udp_channel(udp_sock);
 
             //fatto tutto
             game.u_status = UserStatus.LOGGED_IN;
             return;
-        }
-
-        //chiudo la connessione tcp
-        try {
-            sock.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
 
         //resetto lo status del GameClient
@@ -113,6 +99,5 @@ public class LogInOp extends Operation {
 
         //comunico all'utente l'errore
         System.out.println("Errore [" + response_status +"]\n\t" + desc);
-
     }
 }

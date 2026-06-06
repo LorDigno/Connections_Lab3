@@ -11,13 +11,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Communication implements Runnable {
-    private SocketChannel tcp_sock;
-    private DatagramChannel udp_sock;
     private Thread game_thread;
     private AtomicBoolean interrupt;
     public AtomicInteger allow_op;
     public BlockingQueue<String> tcp_queue_in, tcp_queue_out;
     public Selector selector;
+    private SelectionKey tcp_key;
+
+    //volatile perché l'inserimento dinamico è balordo
+    private volatile SelectionKey udp_key;
 
     public class TCPAttachment {
         public int status;
@@ -29,10 +31,7 @@ public class Communication implements Runnable {
         }
     }
 
-    public Communication(SocketChannel tcp_sock, DatagramChannel udp_sock, Thread game_thread
-                            , AtomicBoolean interrupt) {
-        this.tcp_sock = tcp_sock;
-        this.udp_sock = udp_sock;
+    public Communication(SocketChannel tcp_sock, Thread game_thread, AtomicBoolean interrupt){
         this.game_thread = game_thread;
 
         //flag per bloccare l'input da stdin
@@ -58,29 +57,24 @@ public class Communication implements Runnable {
             //trovare il modo di comunicarlo al mainThread
             //tbd
         }
-    }
 
-    @Override
-    public void run() {
-        SelectionKey udp_key = null, tcp_key = null;
+        udp_key = null;
+        tcp_key = null;
 
         try {
             //inserisco nel selettore i socket in modalità non bloccante
             tcp_sock.configureBlocking(false);
             //solo in read perché l'os da sempre il via libera per la write
             tcp_key = tcp_sock.register(selector, SelectionKey.OP_READ);
-
-            udp_sock.configureBlocking(false);
-            udp_key = udp_sock.register(selector, SelectionKey.OP_READ);
-            //mi porto dietro il bytebuffer
-            udp_key.attach(ByteBuffer.allocate(4096));
-
         } catch (IOException e) {
             System.err.println("#### Problemi d'instaurazione della connessione, operazione annullata");
             //trovare il modo di comunicarlo al mainThread
             //tbd
         }
+    }
 
+    @Override
+    public void run() {
         //loop di select del server
         while (true) {
             if(!tcp_queue_in.isEmpty()){
@@ -92,7 +86,10 @@ public class Communication implements Runnable {
             //  non se ne accorge.
             try {
                 selector.select();
-            } catch (IOException ex) {
+            }catch (ClosedSelectorException ex) {
+                // il selettore è stato chiuso da game.reset()
+                break;
+            }catch (IOException ex) {
                 ex.printStackTrace();
                 break;
             }
@@ -101,7 +98,8 @@ public class Communication implements Runnable {
             Set<SelectionKey> readyKeys = selector.selectedKeys();
 
             //garantisco che se c'è una notifica la stampo subito a schermo.
-            if (readyKeys.contains(udp_key)) {
+
+            if (udp_key != null  && readyKeys.contains(udp_key)) {
                 //controllo per sicurezza
                 if(udp_key.isReadable()){
                     receive_udp(udp_key);
@@ -117,8 +115,32 @@ public class Communication implements Runnable {
         }
     }
 
+    public boolean add_udp_channel(DatagramChannel udp_sock){
+        try{
+            if(udp_sock != null) {
+                //ci sono delle operazioni (register e updateCredentials) che vogliono solo il tcp
+                // e subito dopo il primo messaggio terminano il thread quindi non inizializzo udp.
+
+                udp_sock.configureBlocking(false);
+                selector.wakeup();
+                udp_key = udp_sock.register(selector, SelectionKey.OP_READ);
+
+                //mi porto dietro il bytebuffer
+                udp_key.attach(ByteBuffer.allocate(4096));
+                return true;
+            }
+        } catch (IOException e) {
+        System.err.println("#### Problemi d'instaurazione della connessione, operazione annullata");
+            //trovare il modo di comunicarlo al mainThread
+            //tbd
+        }
+        return false;
+    }
+
     private void receive_udp(SelectionKey key){
         try {
+            DatagramChannel udp_sock = (DatagramChannel) key.channel();
+
             //prendo il buffer, non lo sto a riallocare ogni volta
             ByteBuffer buffer = (ByteBuffer) key.attachment();
 
