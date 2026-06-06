@@ -113,6 +113,25 @@ public class Communication implements Runnable {
                 readyKeys.remove(tcp_key);
             }
         }
+
+        //terminazione delle risorse del thread
+        try{
+            tcp_key.channel().close();
+        }catch(IOException e){
+            System.err.println("#### Problemi di IO alla chiusura della connessione");
+        }
+
+        try{
+            if(udp_key != null){
+                udp_key.channel().close();
+            }
+        }catch(IOException e){
+            System.err.println("#### Problemi di IO alla chiusura della connessione");
+        }
+
+        tcp_queue_out.clear();
+        tcp_queue_in.clear();
+
     }
 
     public boolean add_udp_channel(DatagramChannel udp_sock){

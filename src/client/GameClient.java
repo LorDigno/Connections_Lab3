@@ -105,12 +105,11 @@ public class GameClient {
     public void reset() {
         //ciudo la connessione tcp
         try {
-            if(tcp_sock != null){
-                tcp_sock.close();
+            if(comm != null){
+                comm.selector.close();
             }
-            if(udp_sock != null){
-                udp_sock.close();
-                udp_thread.join();
+            if(comm_thread != null){
+                comm_thread.join();
             }
         }catch (InterruptedException e){
             //teoricamente dopo l'annullamento di tutti i riferimenti subentra il garbage collector
@@ -120,10 +119,9 @@ public class GameClient {
 
         //reset del GameClient
         u_status = UserStatus.NOT_LOGGED;
-        tcp_sock = null;
         username = null;
-        udp_sock = null;
-        udp_thread = null;
+        comm = null;
+        comm_thread = null;
     }
 
     private void quit(){

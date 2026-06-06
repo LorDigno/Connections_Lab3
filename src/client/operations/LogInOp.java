@@ -2,13 +2,11 @@ package client.operations;
 
 import client.ClientJsonUtils;
 import client.GameClient;
-import client.UdpHandler;
 import client.UserStatus;
 
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.channels.DatagramChannel;
-import java.nio.channels.SocketChannel;
 
 public class LogInOp extends Operation {
     //operazione che gestisce la connessione iniziale TCP col server
