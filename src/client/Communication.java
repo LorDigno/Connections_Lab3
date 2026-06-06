@@ -76,42 +76,43 @@ public class Communication implements Runnable {
     @Override
     public void run() {
         //loop di select del server
-        while (true) {
-            if(!tcp_queue_in.isEmpty()){
-                tcp_key.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-            }
-
-            //provo a fare la select bloccante
-            //all'inserimento di messaggi in tcp_queue_in devo fare selector.wakeup che sennò
-            //  non se ne accorge.
-            try {
-                selector.select();
-            }catch (ClosedSelectorException ex) {
-                // il selettore è stato chiuso da game.reset()
-                break;
-            }catch (IOException ex) {
-                ex.printStackTrace();
-                break;
-            }
-
-            //ottengo il SelectedKeySet
-            Set<SelectionKey> readyKeys = selector.selectedKeys();
-
-            //garantisco che se c'è una notifica la stampo subito a schermo.
-
-            if (udp_key != null  && readyKeys.contains(udp_key)) {
-                //controllo per sicurezza
-                if(udp_key.isReadable()){
-                    receive_udp(udp_key);
+        try{
+            while (true) {
+                if(!tcp_queue_in.isEmpty()){
+                    tcp_key.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
                 }
-                readyKeys.remove(udp_key);
-            }
 
-            //per controllare che non ci sia anche il socketChannel in attesa
-            if(readyKeys.contains(tcp_key)){
-                handle_tcp(tcp_key);
-                readyKeys.remove(tcp_key);
+                //provo a fare la select bloccante
+                //all'inserimento di messaggi in tcp_queue_in devo fare selector.wakeup che sennò
+                //  non se ne accorge.
+                try {
+                    selector.select();
+                }catch (IOException ex) {
+                    ex.printStackTrace();
+                    break;
+                }
+
+                //ottengo il SelectedKeySet
+                Set<SelectionKey> readyKeys = selector.selectedKeys();
+
+                //garantisco che se c'è una notifica la stampo subito a schermo.
+
+                if (udp_key != null  && readyKeys.contains(udp_key)) {
+                    //controllo per sicurezza
+                    if(udp_key.isReadable()){
+                        receive_udp(udp_key);
+                    }
+                    readyKeys.remove(udp_key);
+                }
+
+                //per controllare che non ci sia anche il socketChannel in attesa
+                if(readyKeys.contains(tcp_key)){
+                    handle_tcp(tcp_key);
+                    readyKeys.remove(tcp_key);
+                }
             }
+        }catch (ClosedSelectorException ex) {
+            // il selettore è stato chiuso da game.reset()
         }
 
         //terminazione delle risorse del thread
@@ -173,7 +174,7 @@ public class Communication implements Runnable {
 
             // Decodifica direttamente il buffer in una stringa
             String response = StandardCharsets.UTF_8.decode(buffer).toString();
-            String messaggio = ClientJsonUtils.get_description(response, "udpPuzzletermination");
+            String messaggio = ClientJsonUtils.get_description(response, "udpPuzzleTermination");
 
             if(messaggio != null){
                 System.out.println(messaggio + "\n***Operazioni in sospeso annullate");
