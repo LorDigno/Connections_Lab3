@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ClientMain {
     //inizializza l'oggetto GameClient leggendo la configurazione
     public static void main(String args[]){
-        File config_file = new File("src/Client/config.properties");
+        File config_file = new File("src/client/config.properties");
 
         try{
             FileReader reader = new FileReader(config_file);
@@ -48,10 +48,10 @@ public class ClientMain {
             game.launch();
 
         } catch (FileNotFoundException ex) {
-            System.err.println("Config.properties file not found");
+            System.err.println("Non trovato il file di configurazione");
             System.exit(1);
         } catch (IOException ex) {
-            System.err.println("Exception during configuration parsing");
+            System.err.println("Problemi durante la configurazione");
             System.exit(1);
         }
 

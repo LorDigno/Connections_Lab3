@@ -1,14 +1,14 @@
 package server;
 
 public class StatusDescription{
-    private int status;
+    private Status status;
     private String description;
 
     public StatusDescription(){
         description = "";
     }
 
-    public void setStatus(int status) {
+    public void setStatus(Status status) {
         this.status = status;
     }
 
@@ -16,7 +16,7 @@ public class StatusDescription{
         this.description = description;
     }
 
-    public int getStatus() {
+    public Status getStatus() {
         return status;
     }
 

@@ -7,6 +7,7 @@ import client.UserStatus;
 public class UpdateCredentialsOp extends Operation {
 
     private boolean clear = false;
+    private String old;
     public UpdateCredentialsOp(GameClient game){
         this.game = game;
         this.name = "updateCredentials";
@@ -33,6 +34,7 @@ public class UpdateCredentialsOp extends Operation {
         String password = "", username = "";
 
         username = get_string("Inserisci lo username del profilo da modificare: ");
+        old = username;
 
         password =  get_string("Inserisci la password: ");
 
@@ -64,10 +66,16 @@ public class UpdateCredentialsOp extends Operation {
     @Override
     public void digest(String response) {
         int response_status = ClientJsonUtils.get_int(response, "status", name);
-        String desc = ClientJsonUtils.get_description(response, name);
+        String desc = ClientJsonUtils.get_string(response, "description",name);
         switch(response_status){
             case 0:
                 System.out.println("Cambio delle credenziali completato con successo");
+
+                String new_username = ClientJsonUtils.get_string(response, "newUsername", name);
+                if(new_username != null && game.username == old){
+                    game.username = new_username;
+                }
+
                 break;
 
             case -1:

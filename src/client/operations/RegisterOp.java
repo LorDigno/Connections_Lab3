@@ -79,7 +79,7 @@ public class RegisterOp extends Operation {
 
             default:
                 //comunico all'utente l'errore
-                String desc = ClientJsonUtils.get_description(response, name);
+                String desc = ClientJsonUtils.get_string(response, "description",name);
                 System.out.println("Errore [" + response_status +"]\n\t" + desc);
         }
 

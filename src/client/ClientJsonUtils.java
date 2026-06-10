@@ -11,13 +11,17 @@ import java.util.List;
 public class ClientJsonUtils {
 
     //info sulla risposta come descrizioni d'errore
-    public static String get_description(String response, String op_name){
+    public static String get_string(String response, String property,String op_name){
         JsonObject json = JsonParser.parseString(response).getAsJsonObject();
         if(!json.get("operation").getAsString().equals(op_name)){
             return null;
         }
 
-        return json.get("description").getAsString();
+        if(json.get(property) != null){
+            return json.get(property).getAsString();
+        }
+
+        return null;
     }
 
     public static int get_int(String response, String property, String op_name){
@@ -26,16 +30,16 @@ public class ClientJsonUtils {
             return -1;
         }
 
-
         return json.get(property).getAsInt();
     }
 
     //rende il messaggio di login date le credenziali
-    public static String get_login_message(String user, String password){
+    public static String get_login_message(String user, String password, int port){
         JsonObject json = new JsonObject();
         json.addProperty("operation", "login");
         json.addProperty("username", user);
         json.addProperty("password", password);
+        json.addProperty("udp_port", port);
         return json.toString();
     }
 

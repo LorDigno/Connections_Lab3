@@ -174,7 +174,7 @@ public class Communication implements Runnable {
 
             // Decodifica direttamente il buffer in una stringa
             String response = StandardCharsets.UTF_8.decode(buffer).toString();
-            String messaggio = ClientJsonUtils.get_description(response, "udpPuzzleTermination");
+            String messaggio = ClientJsonUtils.get_string(response, "description","udpPuzzleTermination");
 
             if(messaggio != null){
                 System.out.println(messaggio + "\n***Operazioni in sospeso annullate");

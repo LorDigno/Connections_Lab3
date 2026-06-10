@@ -37,7 +37,7 @@ public class RequestGameStatsOp extends Operation{
     @Override
     public void digest(String response) {
         int response_status = ClientJsonUtils.get_int(response, "status", name);
-        String desc = ClientJsonUtils.get_description(response, name);
+        String desc = ClientJsonUtils.get_string(response, "description",name);
         switch(response_status){
             case 0:
                 System.out.println("Ottenute le statistiche sul puzzle\n" + desc);
