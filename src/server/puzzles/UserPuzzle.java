@@ -7,17 +7,17 @@ import server.users.User;
 import java.util.*;
 
 public class UserPuzzle {
-    public RealPuzzle real;
-    private User user;
+    public transient RealPuzzle real;
+    public transient User user;
     private List<String> leftover_words;
     private List<List<String>> good_proposals;
     public int mistakes, score, guesses_left;
     //time_left in millisecondi
 
-    public UserPuzzle(User user, RealPuzzle puzzle, List<String> words){
+    public UserPuzzle(User user, RealPuzzle puzzle){
         this.real = puzzle;
         this.user = user;
-        leftover_words = words;
+        leftover_words = new ArrayList<String>(real.getGroups().keySet());
         mistakes = 0;
         score = 0;
         guesses_left = 4;

@@ -1,31 +1,36 @@
 package server.users;
 
 import server.GameServer;
+import server.PersistenceManager;
 import server.Status;
 import server.StatusDescription;
 
-import java.io.ObjectInputFilter;
 import java.net.InetAddress;
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class UserManager {
     //utenti recuperati dal disco e sessioni attive
-    private final ConcurrentHashMap<String, User> users;
-    private final ConcurrentHashMap<String, UserSession> active_sessions;
+    private final ConcurrentHashMap<Integer, User> users;
+    private final ConcurrentHashMap<Integer, UserSession> active_sessions;
+    private final ConcurrentHashMap<String, Integer> user_id;
+    private PersistenceManager persistence;
 
     private GameServer server;
 
-    public UserManager(GameServer server){
+    public UserManager(GameServer server, PersistenceManager pers){
         users = new ConcurrentHashMap<>();
         active_sessions = new ConcurrentHashMap<>();
+        user_id = new ConcurrentHashMap<>();
         this.server = server;
+        this.persistence = pers;
     }
 
     //chiamato da
     //controlla le credenziali date
     public StatusDescription chack_login(String username, String password){
-        User user = users.get(username);
+        User user = users.get(user_id.get(username));
         StatusDescription out = new StatusDescription();
 
         //utente non esiste
@@ -36,7 +41,7 @@ public class UserManager {
             //password sbagliata
             out.setStatus(Status.LOGIN_WRONG_PASSWORD);
             out.setDescription("La password inserita è errata");
-        } else if (active_sessions.containsKey(username)){
+        } else if (active_sessions.containsKey(user_id.get(username))){
             //già loggato
             out.setStatus(Status.LOGIN_ALREADY_CONNECTED);
             out.setDescription("E' già attiva una sessione con l'utente \""+ username + "\"");
@@ -51,14 +56,14 @@ public class UserManager {
     //aggiunge e rende la sessione, da per scontato che sia stato gia chiamato check_login
     public UserSession session_login(String username, InetAddress address, int udp_port){
         UserSession out = new UserSession(username, address, udp_port);
-        active_sessions.put(username, out);
+        active_sessions.put(user_id.get(username), out);
         return out;
     }
 
     public StatusDescription logout(String username){
         StatusDescription out = new StatusDescription();
 
-        if(!active_sessions.containsKey(username)){
+        if(!active_sessions.containsKey(user_id.get(username))){
             //non è loggato, dovrebbe essere impossibile fare logout da non logged però
             out.setStatus(Status.LOGOUT_NOT_LOGGED);
             out.setDescription("Lo username \"" + username + "\" non risulta loggato");
@@ -68,7 +73,7 @@ public class UserManager {
             out.setDescription("logout effettuato");
 
             //elimino la sessione
-            active_sessions.remove(username);
+            active_sessions.remove(user_id.get(username));
         }
 
         return out;
@@ -83,7 +88,7 @@ public class UserManager {
             out.setStatus(Status.REGISTER_USERNAME_BANNED);
             out.setDescription("Username non accettabile");
 
-        } else if(users.containsKey(username)){
+        } else if(user_id.containsKey(username)){
             //username già registrato
             out.setStatus(Status.REGISTER_USERNAME_TAKEN);
             out.setDescription("Username già registrato");
@@ -94,7 +99,7 @@ public class UserManager {
 
             //aggiunta del nuovo utente
             User user = new User(username, password);
-            users.put(username, user);
+            users.put(user.getId(), user);
             //trova il modo di aggiungerlo al disco (o nella coda per la persistenza)
             //tbd
         }
@@ -105,7 +110,7 @@ public class UserManager {
     public StatusDescription update_credentials(String username, String password,
                                       String new_username, String new_password){
         StatusDescription out = new StatusDescription();
-        User user = users.get(username);
+        User user = users.get(user_id.get(username));
 
         if(user == null){
             //username non noto
@@ -117,7 +122,7 @@ public class UserManager {
             out.setStatus(Status.UPDATE_WRONG_PASSWORD);
             out.setDescription("La password inserita è errata");
 
-        } else if(new_username != null && users.containsKey(new_username)){
+        } else if(new_username != null && user_id.containsKey(new_username)){
             //username già registrato
             out.setStatus(Status.UPDATE_USERNAME_TAKEN);
             out.setDescription("Username già registrato");
@@ -141,8 +146,8 @@ public class UserManager {
             }
 
             //cambio nella mappa
-            users.remove(username);
-            users.put(user.getUsername(), user);
+            user_id.remove(username);
+            user_id.put(user.getUsername(), user.getId());
 
             //segnalo che è da flushare
             //tbd
@@ -159,6 +164,15 @@ public class UserManager {
     //per UDPNotifier
     public Collection<UserSession> getActive_sessions() {
         return active_sessions.values();
+    }
+
+    //renddo gli user loggati
+    public Set<Integer> getActive_users() {
+        return active_sessions.keySet();
+    }
+
+    public User get_user_from_id(int id){
+        return users.get(id);
     }
 
     //legge gli user già noti dal disco

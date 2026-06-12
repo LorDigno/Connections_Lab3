@@ -30,21 +30,25 @@ public class GameServer {
 
     public void launch(){
         //inizializzo i manager degli utenti, partite e della persistenza
-        user_m = new UserManager(this);
-        game_m = new GameManager();
-        persistence_m = new PersistenceManager(user_m, game_m);
+        persistence_m = new PersistenceManager();
+        user_m = new UserManager(this, persistence_m);
+
+        //avvio il thread delle notifiche udp
+        //implementa runnable
+        udp_notifier = new UDPNotifier(user_m);
+        new Thread(udp_notifier).start();
+
+
+        game_m = new GameManager(this, user_m, udp_notifier, persistence_m);
 
         //avvio il threadpool delle sessioni tcp
         threadPool = Executors.newCachedThreadPool();
 
-        //avvio il thread delle notifiche udp
-        udp_notifier = new UDPNotifier(game_m, user_m);
-        new Thread(udp_notifier, "udp-notifier").start();
+
 
         //schedulo in modo periodico il l'aggiornamento dei file su disco
         scheduler = Executors.newSingleThreadScheduledExecutor();
-        scheduler.scheduleAtFixedRate(persistence_m::flush, 30, 60, TimeUnit.SECONDS);
-
+        scheduler.scheduleAtFixedRate(persistence_m::flush_all, 30, 60, TimeUnit.SECONDS);
 
         //questo thread diventa l'accettatore delle nuove connessioni
         acceptLoop();

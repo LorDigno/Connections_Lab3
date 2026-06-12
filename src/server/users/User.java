@@ -34,4 +34,8 @@ public class User {
     public void setUsername(String username) {
         this.username = username;
     }
+
+    public int getId(){
+        return this.id;
+    }
 }
