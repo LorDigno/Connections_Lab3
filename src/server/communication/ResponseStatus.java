@@ -1,8 +1,9 @@
-package server;
+package server.communication;
 
-public enum Status {
+public enum ResponseStatus {
     // generici
     OK(0),
+    GAME_CHANGING(1),
 
     // login
     LOGIN_USER_NOT_FOUND(10),
@@ -33,7 +34,7 @@ public enum Status {
 
     private final int code;
 
-    Status(int code) {
+    ResponseStatus(int code) {
         this.code = code;
     }
 

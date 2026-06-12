@@ -1,7 +1,6 @@
 package server;
 
-import client.GameClient;
-import client.InputDaemon;
+import server.game.GameServer;
 
 import java.io.File;
 import java.io.FileNotFoundException;

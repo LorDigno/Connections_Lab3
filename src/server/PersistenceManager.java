@@ -2,14 +2,16 @@ package server;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.stream.JsonReader;
 import server.puzzles.RealPuzzle;
+import server.puzzles.RealPuzzleFile;
 import server.puzzles.UserPuzzle;
 import server.users.User;
 import server.users.UserFile;
+import server.puzzles.UserPuzzleData;
 
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -53,23 +55,30 @@ public class PersistenceManager {
         Iterator<Integer> iter = id_union.iterator();
         while(iter.hasNext()){
             int curr = iter.next();
-
-            //crea il file se non esiste o lo apre se esiste già
-            //tbd
+            User u = null;
+            UserPuzzle up = null;
 
             if(id_u.contains(curr)){
                 //salvataggio dell'utente users.get(curr)
-                //tbd
+                u = users.get(curr);
             }
 
             if(id_p.contains(curr)){
                 //salvataggio del puzzle puzzles.get(curr)
-                //tbd
+                up = puzzles.get(curr);
             }
+
+            write_user_file(curr, u, up);
         }
     }
 
-    private void flush_puzzles(Set<RealPuzzle> to_flush){};
+    private void flush_puzzles(Set<RealPuzzle> to_flush){
+        Iterator<RealPuzzle> iter = to_flush.iterator();
+        while(iter.hasNext()){
+            RealPuzzle curr = iter.next();
+            write_puzzle_file(curr);
+        }
+    }
 
     //chiamato in automatico dallo scheduler
     public void flush_all(){
@@ -84,62 +93,65 @@ public class PersistenceManager {
         flush_puzzles(game);
     }
 
-
-    private void write_user_file(User user, UserPuzzle puzzle) {
-        Gson gson = new GsonBuilder().create();
-        File file = new File("data/users/" + user.getId() + ".json");
+    private void write_user_file(int id, User user, UserPuzzle puzzle) {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        File file = new File("data/users/" + id + ".json");
         UserFile uf;
 
-        // carica esistente o crea nuovo
+        //carica esistente o crea nuovo
         if (file.exists()) {
             try (FileReader reader = new FileReader(file)) {
                 uf = gson.fromJson(reader, UserFile.class);
             } catch (IOException e) {
                 System.err.println("Errore lettura file utente");
+                //tbd
                 return;
             }
         } else {
             uf = new UserFile();
         }
 
-        // aggiorna campi base
-        uf.id = user.getId();
-        uf.username = user.getUsername();
-        uf.password = user.getPassword();
-        uf.partite_giocate = user.getPartite_giocate();
-        uf.partite_vinte = user.getPartite_vinte();
-        uf.punteggio_medio = user.getPunteggio_medio();
+        //aggiorno i dati
+        if(user != null){
+            uf.fill(user);
+        }
 
-        // aggiorna o aggiungi UserPuzzle
-        if (puzzle != null) {
-            boolean found = false;
-            for (UserPuzzleData upd : uf.partite) {
-                if (upd.game_id == puzzle.getGame_id()) {
-                    // aggiorna esistente
-                    upd.mistakes = puzzle.mistakes;
-                    upd.score = puzzle.score;
-                    upd.guesses_left = puzzle.guesses_left;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                // aggiungi nuova
-                UserPuzzleData upd = new UserPuzzleData();
-                upd.game_id = puzzle.getGame_id();
-                upd.mistakes = puzzle.mistakes;
-                upd.score = puzzle.score;
-                upd.guesses_left = puzzle.guesses_left;
-                uf.partite.add(upd);
-            }
+        //se c'è sovrascrivo il puzzle
+        if(puzzle != null){
+            uf.partite.put(puzzle.real.id, new UserPuzzleData(puzzle));
         }
 
         // scrittura sicura con file temporaneo
-        File tmp = new File("data/users/" + user.getId() + ".tmp");
+        File tmp = new File("data/users/" + id + ".tmp");
         try (FileWriter writer = new FileWriter(tmp)) {
             gson.toJson(uf, writer);
         } catch (IOException e) {
             System.err.println("Errore scrittura file utente");
+            return;
+        }
+
+        //è atomica su Linux e MacOS
+        //uno che leggeva la versione vecchia, continua a farlo (FD con info vecchie)
+        //uno che apre subito dopo ha la versione aggiornata
+        tmp.renameTo(file);
+    }
+
+    private void write_puzzle_file(RealPuzzle puzzle){
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        File file = new File("data/puzzles/" + puzzle.id + ".json");
+        RealPuzzleFile pf;
+
+        //sovrascrivo tutto ogni volta
+        pf = new RealPuzzleFile();
+        pf.fill(puzzle);
+
+        // scrittura sicura con file temporaneo
+        File tmp = new File("data/puzzles/" + puzzle.id + ".tmp");
+        try (FileWriter writer = new FileWriter(tmp)) {
+            gson.toJson(pf, writer);
+        } catch (IOException e) {
+            System.err.println("Errore scrittura file partita");
+            //tbd
             return;
         }
         tmp.renameTo(file);

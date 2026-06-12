@@ -1,16 +1,16 @@
 package server.puzzles;
 
-import server.Status;
-import server.StatusDescription;
+import server.communication.ResponseStatus;
+import server.communication.StatusDescription;
 import server.users.User;
 
 import java.util.*;
 
 public class UserPuzzle {
-    public transient RealPuzzle real;
-    public transient User user;
-    private List<String> leftover_words;
-    private List<List<String>> good_proposals;
+    public RealPuzzle real;
+    public User user;
+    public List<String> leftover_words;
+    public List<List<String>> good_proposals;
     public int mistakes, score, guesses_left;
     //time_left in millisecondi
 
@@ -29,7 +29,7 @@ public class UserPuzzle {
 
         //proposta mal formata
         if(proposal.size() != 4){
-            out.setStatus(Status.PROPOSAL_WRONG_SIZE);
+            out.setStatus(ResponseStatus.PROPOSAL_WRONG_SIZE);
             out.setDescription("Una proposta deve essere formata da esattamente 4 parole");
             return out;
         }
@@ -45,19 +45,19 @@ public class UserPuzzle {
 
             if(current_guess == null){
                 //la parola non è in solution quindi è sconosciuta
-                out.setStatus(Status.PROPOSAL_UNKNOWN_WORD);
+                out.setStatus(ResponseStatus.PROPOSAL_UNKNOWN_WORD);
                 out.setDescription("La parola \""+word+"\" non fa parte del puzzle");
                 return out;
             }
             if(!leftover_words.contains(word)){
                 //la parola non è ancora in gioco
-                out.setStatus(Status.PROPOSAL_ALREADY_GROUPED);
+                out.setStatus(ResponseStatus.PROPOSAL_ALREADY_GROUPED);
                 out.setDescription("La parola \""+word+"\" è già stata raggruppata correttamente");
                 return out;
             }
             if(already.contains(word)){
                 //la parola è più volte nella proposta, il client non lo permette ma non si sa mai
-                out.setStatus(Status.PROPOSAL_REPEATED_WORD);
+                out.setStatus(ResponseStatus.PROPOSAL_REPEATED_WORD);
                 out.setDescription("La parola \""+word+"\" è presente più volta nella proposta");
                 return out;
             }
@@ -72,7 +72,7 @@ public class UserPuzzle {
                 //una delle parole ha corrispondenza diversa quindi la proposta è fallimentare
                 guesses_left += -1;
 
-                out.setStatus(Status.OK);
+                out.setStatus(ResponseStatus.OK);
                 out.setDescription("La proposta contiene almeno una parola non connessa alle altre" +
                         "\nSottratti 4 punti al tuo punteggio" +
                         "\nTentativi rimanenti: " + (guesses_left));
@@ -85,7 +85,7 @@ public class UserPuzzle {
 
         guesses_left += -1;
 
-        out.setStatus(Status.OK);
+        out.setStatus(ResponseStatus.OK);
         out.setDescription("La proposta: " + proposal.toString() + "è corretta!!!" +
                 "\nIl tema era: \"" + group + "\"" +
                 "\n Aggiunnti 6 punti al tuo punteggio" +

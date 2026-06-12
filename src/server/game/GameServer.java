@@ -1,7 +1,11 @@
-package server;
+package server.game;
 
+import server.PersistenceManager;
 import server.users.UserManager;
 
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -14,7 +18,6 @@ public class GameServer {
     public List<String> banlist;
 
     //componenti principali
-    private ExecutorService threadPool;
     private ScheduledExecutorService scheduler;
     private UDPNotifier udp_notifier;
     private GameManager game_m;
@@ -41,20 +44,27 @@ public class GameServer {
 
         game_m = new GameManager(this, user_m, udp_notifier, persistence_m);
 
-        //avvio il threadpool delle sessioni tcp
-        threadPool = Executors.newCachedThreadPool();
-
-
-
         //schedulo in modo periodico il l'aggiornamento dei file su disco
         scheduler = Executors.newSingleThreadScheduledExecutor();
-        scheduler.scheduleAtFixedRate(persistence_m::flush_all, 30, 60, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(persistence_m::flush_all, 60, 120, TimeUnit.SECONDS);
+
+        //avvio la prima partita, le altre vengono da se
+        game_m.launch();
 
         //questo thread diventa l'accettatore delle nuove connessioni
         acceptLoop();
     }
 
     private void acceptLoop() {
+        try(ServerSocket sock = new ServerSocket(this.tcp_port)){
+            //ciclo d'accettazione
+            while(true){
+                Socket tcp = sock.accept();
+                game_m.submit_client(tcp);
+            }
 
+        }catch (IOException e){
+            //tbd
+        }
     }
 }

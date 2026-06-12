@@ -1,10 +1,14 @@
 package server.users;
 
-import server.GameServer;
+import com.google.gson.Gson;
+import server.game.GameServer;
 import server.PersistenceManager;
-import server.Status;
-import server.StatusDescription;
+import server.communication.ResponseStatus;
+import server.communication.StatusDescription;
 
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Collection;
 import java.util.Set;
@@ -25,55 +29,59 @@ public class UserManager {
         user_id = new ConcurrentHashMap<>();
         this.server = server;
         this.persistence = pers;
+
+        load_from_disk();
     }
 
-    //chiamato da
-    //controlla le credenziali date
-    public StatusDescription chack_login(String username, String password){
-        User user = users.get(user_id.get(username));
+    public StatusDescription session_login(String username, String password,
+                                           InetAddress address, int udp_port) {
         StatusDescription out = new StatusDescription();
+        Integer id = user_id.get(username);
 
-        //utente non esiste
-        if (user == null){
-            out.setStatus(Status.LOGIN_USER_NOT_FOUND);
-            out.setDescription("Non esiste un profilo di nome: \"" + username +"\"");
-        } else if (!user.getPassword().equals(password)){
-            //password sbagliata
-            out.setStatus(Status.LOGIN_WRONG_PASSWORD);
-            out.setDescription("La password inserita è errata");
-        } else if (active_sessions.containsKey(user_id.get(username))){
-            //già loggato
-            out.setStatus(Status.LOGIN_ALREADY_CONNECTED);
-            out.setDescription("E' già attiva una sessione con l'utente \""+ username + "\"");
-        }else{
-            out.setStatus(Status.OK);
-            out.setDescription("Login eseguito correttamente");
+        //non c'è lo user
+        if (id == null){
+            out.setStatus(ResponseStatus.LOGIN_USER_NOT_FOUND);
+            out.setDescription("Non esiste un profilo di nome: \"" + username + "\"");
+            return out;
         }
 
+        User user = users.get(id);
+        if (!user.getPassword().equals(password)){
+            out.setStatus(ResponseStatus.LOGIN_WRONG_PASSWORD);
+            out.setDescription("La password inserita è errata");
+            return out;
+        }
+
+        UserSession session = new UserSession(username, address, udp_port);
+        //per garantire l'atomicità
+        UserSession existing = active_sessions.putIfAbsent(id, session);
+
+        if (existing != null) {
+            //qualcun altro è arrivato prima
+            out.setStatus(ResponseStatus.LOGIN_ALREADY_CONNECTED);
+            out.setDescription("E' già attiva una sessione con l'utente \"" + username + "\"");
+            return out;
+        }
+
+        out.setStatus(ResponseStatus.OK);
+        out.setDescription("Login eseguito correttamente");
         return out;
     }
 
-    //aggiunge e rende la sessione, da per scontato che sia stato gia chiamato check_login
-    public UserSession session_login(String username, InetAddress address, int udp_port){
-        UserSession out = new UserSession(username, address, udp_port);
-        active_sessions.put(user_id.get(username), out);
-        return out;
-    }
-
-    public StatusDescription logout(String username){
+    public StatusDescription logout(int id){
         StatusDescription out = new StatusDescription();
 
-        if(!active_sessions.containsKey(user_id.get(username))){
+        //rimuove la sessione atomicamente, null se non c'era
+        UserSession removed = active_sessions.remove(id);
+
+        if(removed == null){
             //non è loggato, dovrebbe essere impossibile fare logout da non logged però
-            out.setStatus(Status.LOGOUT_NOT_LOGGED);
-            out.setDescription("Lo username \"" + username + "\" non risulta loggato");
+            out.setStatus(ResponseStatus.LOGOUT_NOT_LOGGED);
+            out.setDescription("Non risulti loggato");
 
         }else{
-            out.setStatus(Status.OK);
+            out.setStatus(ResponseStatus.OK);
             out.setDescription("logout effettuato");
-
-            //elimino la sessione
-            active_sessions.remove(user_id.get(username));
         }
 
         return out;
@@ -85,23 +93,35 @@ public class UserManager {
 
         if(server.banlist.contains(username)){
             //username non valido
-            out.setStatus(Status.REGISTER_USERNAME_BANNED);
+            out.setStatus(ResponseStatus.REGISTER_USERNAME_BANNED);
             out.setDescription("Username non accettabile");
 
-        } else if(user_id.containsKey(username)){
-            //username già registrato
-            out.setStatus(Status.REGISTER_USERNAME_TAKEN);
+        }
+
+        //per capire se c'è stata la lambda
+        boolean[] wasCreated = new boolean[1];
+
+        //computeIfAbsent e non putIfAbsent per via del User.next_id statico
+        user_id.computeIfAbsent(username,
+                k -> {
+                    wasCreated[0] = true;
+
+                    User newUser = new User(username, password);
+                    users.put(newUser.getId(), newUser);
+
+                    //da salvare
+                    persistence.mark_user(newUser);
+                    return newUser.getId();
+                }
+        );
+
+        //rendo il payload in base alla creazione del nuovo user
+        if(!wasCreated[0]){
+            out.setStatus(ResponseStatus.REGISTER_USERNAME_TAKEN);
             out.setDescription("Username già registrato");
-
         }else{
-            out.setStatus(Status.OK);
-            out.setDescription("OK");
-
-            //aggiunta del nuovo utente
-            User user = new User(username, password);
-            users.put(user.getId(), user);
-            //trova il modo di aggiungerlo al disco (o nella coda per la persistenza)
-            //tbd
+            out.setStatus(ResponseStatus.OK);
+            out.setDescription("Registrazione completata con successo");
         }
 
         return out;
@@ -114,26 +134,26 @@ public class UserManager {
 
         if(user == null){
             //username non noto
-            out.setStatus(Status.UPDATE_USER_NOT_FOUND);
+            out.setStatus(ResponseStatus.UPDATE_USER_NOT_FOUND);
             out.setDescription("Non esiste un profilo di nome: \"" + username +"\"");
 
         } else if(!user.getPassword().equals(password)){
             //password sbagliata
-            out.setStatus(Status.UPDATE_WRONG_PASSWORD);
+            out.setStatus(ResponseStatus.UPDATE_WRONG_PASSWORD);
             out.setDescription("La password inserita è errata");
 
         } else if(new_username != null && user_id.containsKey(new_username)){
             //username già registrato
-            out.setStatus(Status.UPDATE_USERNAME_TAKEN);
+            out.setStatus(ResponseStatus.UPDATE_USERNAME_TAKEN);
             out.setDescription("Username già registrato");
 
         } else if (new_username != null  && server.banlist.contains(new_username)){
             //username non valido
-            out.setStatus(Status.UPDATE_USERNAME_BANNED);
+            out.setStatus(ResponseStatus.UPDATE_USERNAME_BANNED);
             out.setDescription("Username non accettabile");
 
         }else {
-            out.setStatus(Status.OK);
+            out.setStatus(ResponseStatus.OK);
             out.setDescription("OK");
 
             //cambio l'effettivo utente
@@ -175,6 +195,48 @@ public class UserManager {
         return users.get(id);
     }
 
+    public int get_id_from_username(String username){
+        return user_id.get(username);
+    }
+
     //legge gli user già noti dal disco
-    private void loadFromDisk() {}
+    private void load_from_disk(){
+        File dir = new File("data/users");
+
+        File[] files = dir.listFiles((d, name) -> name.endsWith(".json"));
+        if(files == null) return;
+
+
+        int max = -1;
+        for(File file : files){
+            User user = get_user_from_file(file);
+
+            if(user != null){
+                if(user.getId() > max){
+                    max = user.getId();
+                }
+
+                users.put(user.getId(), user);
+                user_id.put(user.getUsername(), user.getId());
+            }
+        }
+
+        User.next_id.set(max + 1);
+    }
+
+    private User get_user_from_file(File file){
+        Gson gson = new Gson();
+        try (FileReader reader = new FileReader(file)){
+            //ottengo le info
+            UserFile uf = gson.fromJson(reader, UserFile.class);
+
+            //rendo lo user corrispondente
+            return new User(uf);
+
+        } catch(IOException e){
+            System.err.println("Errore lettura file utente: " + file.getName());
+            //tbd
+            return null;
+        }
+    }
 }
