@@ -11,7 +11,8 @@ public class UserPuzzle {
     public User user;
     public List<String> leftover_words;
     public List<List<String>> good_proposals;
-    public int mistakes, score, guesses_left;
+    public int mistakes, score, guesses_left, right_ones;
+    private volatile boolean finished;
     //time_left in millisecondi
 
     public UserPuzzle(User user, RealPuzzle puzzle){
@@ -21,7 +22,22 @@ public class UserPuzzle {
         mistakes = 0;
         score = 0;
         guesses_left = 4;
+        right_ones = 0;
         good_proposals = new ArrayList<List<String>>();
+        finished = false;
+    }
+
+    public boolean is_finished() {
+        return finished;
+    }
+
+    private void check_finish(){
+        if(!finished){
+            if(mistakes > 3 || guesses_left < 1 || right_ones == 3){
+                finished = true;
+                guesses_left = 0;
+            }
+        }
     }
 
     public StatusDescription analyze(List<String> proposal){
@@ -70,35 +86,44 @@ public class UserPuzzle {
 
             if(!current_guess.equals(group)){
                 //una delle parole ha corrispondenza diversa quindi la proposta è fallimentare
-                guesses_left += -1;
+                synchronized(this){
+                    guesses_left += -1;
+                    score += -4;
+                    mistakes += 1;
+
+                    check_finish();
+                }
 
                 out.setStatus(ResponseStatus.OK);
                 out.setDescription("La proposta contiene almeno una parola non connessa alle altre" +
                         "\nSottratti 4 punti al tuo punteggio" +
                         "\nTentativi rimanenti: " + (guesses_left));
 
-                score += -4;
-                mistakes += 1;
                 return out;
             }
         }
 
-        guesses_left += -1;
+        synchronized(this){
+            guesses_left += -1;
+            score += 6;
+            right_ones += 1;
+            good_proposals.add(proposal);
+
+            check_finish();
+
+            //rimozione delle parole indovinate da quelle rimanenti
+            iter = proposal.iterator();
+            while(iter.hasNext()){
+                leftover_words.remove(iter.next());
+            }
+        }
+
 
         out.setStatus(ResponseStatus.OK);
         out.setDescription("La proposta: " + proposal.toString() + "è corretta!!!" +
                 "\nIl tema era: \"" + group + "\"" +
                 "\n Aggiunnti 6 punti al tuo punteggio" +
                 "\nTentativi rimanenti: " + (guesses_left));
-
-        score += 6;
-        good_proposals.add(proposal);
-
-        //rimozione delle parole indovinate da quelle rimanenti
-        iter = proposal.iterator();
-        while(iter.hasNext()){
-            leftover_words.remove(iter.next());
-        }
 
         return out;
     }

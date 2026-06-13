@@ -83,8 +83,12 @@ public class LogInOp extends Operation {
             System.out.println("Accesso eseguito con successo, benvenuto " + username + " !!\n" +
                     "E' ora di iniziare una partita!!!\n\n" + desc);
 
+            //aggiungo l'id della partita
+            int new_id = ClientJsonUtils.get_int(response, "new_id", name);
+            game.puzzle_id.set(new_id);
+
             //aggiungo il channel di ricezione delle modifiche
-            game.comm.add_udp_channel(udp_sock);
+            game.comm.add_udp_channel(udp_sock, game.puzzle_id);
 
             //fatto tutto
             game.u_status = UserStatus.LOGGED_IN;

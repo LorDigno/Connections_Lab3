@@ -2,20 +2,22 @@ package server.game;
 
 import server.PersistenceManager;
 import server.communication.ClientHandler;
+import server.communication.ResponseStatus;
+import server.communication.StatusDescription;
 import server.puzzles.RealPuzzle;
 import server.puzzles.UserPuzzle;
 import server.users.User;
 import server.users.UserManager;
 
 import java.net.Socket;
-import java.util.HashSet;
-import java.util.Iterator;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 //gestisce effettivamente il puzzle
-public class GameManager {
+public class GameManager{
     private volatile RealPuzzle current;
     private ConcurrentHashMap<Integer, UserPuzzle> participants;
     private ScheduledExecutorService timer;
@@ -27,8 +29,8 @@ public class GameManager {
 
     //monitor per endgame
     private final Object game_lock;
-    private boolean changing_game = false;
-    private int active_requests = 0;
+    private volatile boolean changing_game = false;
+    private volatile int active_requests = 0;
 
     private PersistenceManager persistance;
 
@@ -37,6 +39,7 @@ public class GameManager {
         this.users = users;
         loader = new GameDataLoader(server.game_time);
         this.udp_notifier = udp_notifier;
+        this.persistance = pers;
 
         game_lock = new Object();
         changing_game =  false;
@@ -63,7 +66,7 @@ public class GameManager {
     //attiva il flush di tutto, cambia gli stati e invia la notifica udp
     private void end_game(){
         //le richieste che arrivano ora sono scadute
-        synchronized (game_lock) {
+        synchronized (game_lock){
             changing_game = true;
 
             //attesa passiva sulla lock come condition variable
@@ -77,17 +80,25 @@ public class GameManager {
             }
         }
 
-        //avvio la terminazione
-        RealPuzzle old_game = current;
+        //salvo le implicazioni delle partite finite
+        for(Integer i: participants.keySet()){
+            //solo di quelli di cui non si è già fatto game_over
+            if(!participants.get(i).is_finished()){
+                game_over(i, participants.get(i));
+            }
+        }
+
+        String leaderboard = get_current_leaderboard();
 
         //salvo la partita vecchia
         save();
 
         //creo la partita nuova
+        RealPuzzle old_game = current;
         current = loader.load_next();
 
         //notifico gli utenti attivi della fine della partita
-        udp_notifier.notify(old_game, current);
+        udp_notifier.notify(old_game, current, leaderboard);
         timer.schedule(this::end_game, server.game_time, TimeUnit.MILLISECONDS);
 
         //aggiorno participants agli user attivi
@@ -102,6 +113,11 @@ public class GameManager {
 
         //le richieste ritornano valide
         changing_game = false;
+    }
+
+    //avvia in qualche modo il salvataggio della partita
+    public void save(){
+        //tbd
     }
 
     //per il conteggio delle operazioni a mezzo che bloccano endgame
@@ -127,19 +143,123 @@ public class GameManager {
         }
     }
 
-    //avvia in qualche modo il salvataggio della partita
-    public void save(){
-        //tbd
-    }
-
-    // in GameManager
-    public UserPuzzle get_participant(int user_id) {
-        return participants.get(user_id);
-    }
-
     public void log_participant(int user_id){
-        UserPuzzle up = new UserPuzzle(users.get_user_from_id(user_id), current);
-        participants.putIfAbsent(user_id, up);
+        participants.computeIfAbsent(user_id,
+                id -> {
+                    User u = users.get_user_from_id(id);
+
+                    //ha giocato una partita in più
+                    u.add_game();
+
+                    //dirty
+                    persistance.mark_user(u);
+
+                    //creo e segno come dirty lo userpuzzle nuovo
+                    UserPuzzle up = new UserPuzzle(u, current);
+                    persistance.mark_user_puzzle(up);
+
+                    //aggiungo un partecipante alla partita
+                    current.add_participant();
+
+                    return up;
+                });
     }
+
+    public int current_id(){
+        return current.id;
+    }
+
+    public StatusDescription submit_proposal(int user_id, int puzzle_id, List<String> words){
+        StatusDescription out;
+        UserPuzzle up = participants.get(user_id);
+
+        //non dovrebbe essere possibile ma controllo comunque
+        if(up == null){
+            out = new StatusDescription();
+            out.setStatus(ResponseStatus.NOT_LOGGED);
+            out.setDescription("Non è possibile giocare da sloggati");
+            return  out;
+        }
+
+        if(puzzle_id != current_id()){
+            out = new StatusDescription();
+            out.setStatus(ResponseStatus.PROPOSAL_OLD_GAME);
+            out.setDescription("La proposta inviata è relativa ad una partita precedente");
+            return  out;
+        }
+
+        //controllo che non sia già finito
+        if(up.is_finished()){
+            out = new StatusDescription();
+            out.setStatus(ResponseStatus.PROPOSAL_ALREADY_PLAYED);
+            out.setDescription("Hai già terminato la partita attuale, aspetta la prossima");
+            return  out;
+        }
+
+        out = up.analyze(words);
+
+        if(out.getStatus() == ResponseStatus.OK){
+            persistance.mark_user_puzzle(up);
+        }
+
+        if(up.is_finished()){
+            game_over(user_id, up);
+
+            //aggiungo la classifica alla descrizione
+            out.setDescription(out.getDescription()
+                    + "\nLa classifica attuale è:\n" + get_current_leaderboard());
+        }
+
+        return out;
+    }
+
+    private void game_over(int user_id, UserPuzzle up){
+        //cambio i dati dell'utente
+        users.puzzle_done(user_id, up.mistakes, up.guesses_left, up.right_ones);
+
+        //cambio i dati del realgame
+        synchronized(current){
+            if(up.is_finished()){
+                current.finished++;
+
+                if(up.right_ones == 3){
+                    current.winners++;
+                }
+            }
+
+            current.total_score += up.score;
+        }
+    }
+
+    //genera la classifica attuale della partita in corso
+    public String get_current_leaderboard() {
+        List<UserPuzzle> leaderboard = new ArrayList<>();
+        for (UserPuzzle puzzle : participants.values()) {
+            leaderboard.add(puzzle);
+        }
+
+        Collections.sort(leaderboard,
+                new Comparator<UserPuzzle>() {
+                    @Override
+                    public int compare(UserPuzzle p1, UserPuzzle p2) {
+                        //se p2 ha più punti, torna numero positivo (p2 sale)
+                        //se p1 ha più punti, torna numero negativo (p1 sale)
+                        return Integer.compare(p2.score, p1.score);
+                    }
+                }
+        );
+
+        String out = "";
+        for(UserPuzzle up: leaderboard){
+            out += up.user.getUsername() + " ha totalizzato: " + up.score + " punti\n";
+        }
+
+        return out;
+    }
+
+    public StatusDescription get_puzzle_info(int user_id, int puzzle_id){
+
+    }
+
 
 }

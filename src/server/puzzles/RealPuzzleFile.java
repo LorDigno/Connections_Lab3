@@ -6,10 +6,15 @@ public class RealPuzzleFile {
     float avg_score;
 
     public void fill(RealPuzzle puzzle){
-        this.time_left = puzzle.time_left;
-        this.partecipants = puzzle.partecipants;;
-        this.winners = puzzle.winners;
-        this.finished = puzzle.finished;
-        this.avg_score = puzzle.avg_score;
+        synchronized(puzzle){
+            this.partecipants = puzzle.partecipants;;
+            this.winners = puzzle.winners;
+            this.finished = puzzle.finished;
+            if(puzzle.partecipants != 0){
+                this.avg_score = (float) puzzle.total_score / puzzle.partecipants;
+            }else{
+                this.avg_score = 0;
+            }
+        }
     }
 }

@@ -17,6 +17,7 @@ public class Communication implements Runnable {
     public BlockingQueue<String> tcp_queue_in, tcp_queue_out;
     public Selector selector;
     private SelectionKey tcp_key;
+    private AtomicInteger puzzle_id;
 
     //volatile perché l'inserimento dinamico è balordo
     private volatile SelectionKey udp_key;
@@ -135,7 +136,7 @@ public class Communication implements Runnable {
 
     }
 
-    public boolean add_udp_channel(DatagramChannel udp_sock){
+    public boolean add_udp_channel(DatagramChannel udp_sock, AtomicInteger puzzle_id){
         try{
             if(udp_sock != null) {
                 //ci sono delle operazioni (register e updateCredentials) che vogliono solo il tcp
@@ -147,6 +148,8 @@ public class Communication implements Runnable {
 
                 //mi porto dietro il bytebuffer
                 udp_key.attach(ByteBuffer.allocate(4096));
+
+                this.puzzle_id = puzzle_id;
                 return true;
             }
         } catch (IOException e) {
@@ -175,12 +178,15 @@ public class Communication implements Runnable {
             // Decodifica direttamente il buffer in una stringa
             String response = StandardCharsets.UTF_8.decode(buffer).toString();
             String messaggio = ClientJsonUtils.get_string(response, "description","udpPuzzleTermination");
+            int new_id = ClientJsonUtils.get_int(response, "new_id", "udpPuzzleTermination");
 
             if(messaggio != null){
                 System.out.println(messaggio + "\n***Operazioni in sospeso annullate");
 
                 interrupt.set(true);
                 game_thread.interrupt();
+
+                puzzle_id.set(new_id);
 
                 if(allow_op.get() == 0){
                     allow_op.set(1);

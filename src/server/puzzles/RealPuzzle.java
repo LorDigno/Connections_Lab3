@@ -6,8 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class RealPuzzle {
     public AtomicBoolean is_current;
-    public int id, partecipants, finished, winners, time_left;
-    public float avg_score;
+    public int id, partecipants, finished, winners, time_left, total_score;;
     private final Map<String, String> groups;
     public Map<String, List<String>> solution;
 
@@ -33,7 +32,7 @@ public class RealPuzzle {
         partecipants = 0;
         finished = 0;
         winners = 0;
-        avg_score = 0;
+        total_score = 0;
         is_current = new AtomicBoolean(true);
     }
 
@@ -41,14 +40,17 @@ public class RealPuzzle {
         return groups;
     }
 
-    @Override
+    public synchronized void add_participant(){
+        partecipants++;
+    }
+
     public String toString(){
         String puzzle = "";
         if(is_current.get()){
             puzzle += "Tempo Rimasto: " + time_left + "ms\n";
         }
         else{
-            puzzle += "Punteggio Medio: " + avg_score + "\n";
+            puzzle += "Punteggio Medio: " + (float)total_score/partecipants + "\n";
         }
         puzzle += "Partecipanti: " + partecipants + "\n";
         puzzle += "Conclusori: " + finished + "\n";

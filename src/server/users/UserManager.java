@@ -40,14 +40,14 @@ public class UserManager {
 
         //non c'è lo user
         if (id == null){
-            out.setStatus(ResponseStatus.LOGIN_USER_NOT_FOUND);
+            out.setStatus(ResponseStatus.USER_NOT_FOUND);
             out.setDescription("Non esiste un profilo di nome: \"" + username + "\"");
             return out;
         }
 
         User user = users.get(id);
         if (!user.getPassword().equals(password)){
-            out.setStatus(ResponseStatus.LOGIN_WRONG_PASSWORD);
+            out.setStatus(ResponseStatus.WRONG_PASSWORD);
             out.setDescription("La password inserita è errata");
             return out;
         }
@@ -76,7 +76,7 @@ public class UserManager {
 
         if(removed == null){
             //non è loggato, dovrebbe essere impossibile fare logout da non logged però
-            out.setStatus(ResponseStatus.LOGOUT_NOT_LOGGED);
+            out.setStatus(ResponseStatus.NOT_LOGGED);
             out.setDescription("Non risulti loggato");
 
         }else{
@@ -93,9 +93,9 @@ public class UserManager {
 
         if(server.banlist.contains(username)){
             //username non valido
-            out.setStatus(ResponseStatus.REGISTER_USERNAME_BANNED);
+            out.setStatus(ResponseStatus.USERNAME_BANNED);
             out.setDescription("Username non accettabile");
-
+            return out;
         }
 
         //per capire se c'è stata la lambda
@@ -117,7 +117,7 @@ public class UserManager {
 
         //rendo il payload in base alla creazione del nuovo user
         if(!wasCreated[0]){
-            out.setStatus(ResponseStatus.REGISTER_USERNAME_TAKEN);
+            out.setStatus(ResponseStatus.USERNAME_TAKEN);
             out.setDescription("Username già registrato");
         }else{
             out.setStatus(ResponseStatus.OK);
@@ -130,60 +130,111 @@ public class UserManager {
     public StatusDescription update_credentials(String username, String password,
                                       String new_username, String new_password){
         StatusDescription out = new StatusDescription();
-        User user = users.get(user_id.get(username));
-
-        if(user == null){
-            //username non noto
-            out.setStatus(ResponseStatus.UPDATE_USER_NOT_FOUND);
+        Integer id = user_id.get(username);
+        if(id == null){
+            out.setStatus(ResponseStatus.USER_NOT_FOUND);
             out.setDescription("Non esiste un profilo di nome: \"" + username +"\"");
-
-        } else if(!user.getPassword().equals(password)){
-            //password sbagliata
-            out.setStatus(ResponseStatus.UPDATE_WRONG_PASSWORD);
-            out.setDescription("La password inserita è errata");
-
-        } else if(new_username != null && user_id.containsKey(new_username)){
-            //username già registrato
-            out.setStatus(ResponseStatus.UPDATE_USERNAME_TAKEN);
-            out.setDescription("Username già registrato");
-
-        } else if (new_username != null  && server.banlist.contains(new_username)){
-            //username non valido
-            out.setStatus(ResponseStatus.UPDATE_USERNAME_BANNED);
-            out.setDescription("Username non accettabile");
-
-        }else {
-            out.setStatus(ResponseStatus.OK);
-            out.setDescription("OK");
-
-            //cambio l'effettivo utente
-            if(new_username != null){
-                user.setUsername(new_username);
-            }
-
-            if(new_password != null){
-                user.setPassword(new_password);
-            }
-
-            //cambio nella mappa
-            user_id.remove(username);
-            user_id.put(user.getUsername(), user.getId());
-
-            //segnalo che è da flushare
-            //tbd
+            return out;
         }
+
+        User user = users.get(id);
+
+        if(!user.getPassword().equals(password)){
+            //password sbagliata
+            out.setStatus(ResponseStatus.WRONG_PASSWORD);
+            out.setDescription("La password inserita è errata");
+            return out;
+        }
+
+        //anche se dovrebbe essere sempre diverso dal vecchio
+        if(new_username != null){
+            if(server.banlist.contains(new_username)){
+                out.setStatus(ResponseStatus.USERNAME_BANNED);
+                out.setDescription("Username non accettabile");
+                return out;
+            }
+
+            Integer existing = user_id.putIfAbsent(new_username, id);
+            if(existing != null){
+                out.setStatus(ResponseStatus.USERNAME_TAKEN);
+                out.setDescription("Username già registrato");
+                return out;
+            }
+
+            //cambio nella mappa, cambiato lo username l'entry vecchia non serve più
+            user_id.remove(username);
+        }
+
+        //passati i controlli
+        out.setStatus(ResponseStatus.OK);
+        out.setDescription("OK");
+
+        //setter synchronized sullo user
+        user.update_credentials(new_username, new_password);
+
+        //segnalo che è da flushare
+        persistence.mark_user(user);
 
         return out;
     }
 
-    //per PersistenceManager
-    public Collection<User> getAllUsers() {
-        return users.values();
-    }
+    public void puzzle_done(int id, int mistakes, int guesses_left, int right_ones){
+        User user = users.get(id);
 
-    //per UDPNotifier
-    public Collection<UserSession> getActive_sessions() {
-        return active_sessions.values();
+        //l'intero cambiamento dello stato deve essere atomico
+        //l'unica lettura di questi campi è in UserFile.fill() che è synchronized
+        synchronized(user){
+            //caso incompleto
+            if(guesses_left > 0){
+                //incomplete era già stato aumentato al login
+                user.curr_streak = 0;
+
+            }else{
+                //casi in cui la partita è giunta a compimento
+                user.incomplete--;
+
+                switch(mistakes){
+                    case 0:
+                        user.perfect++;
+                        break;
+
+                    case 1:
+                        user.one_mistake++;
+                        break;
+
+                    case 2:
+                        user.two_mistakes++;
+                        break;
+
+                    case 3:
+                        user.three_mistakes++;
+                        break;
+
+                    case 4:
+                        user.four_mistakes++;
+                        break;
+                }
+
+                if(right_ones < 3){
+                    user.failed++;
+                    user.curr_streak = 0;
+                }else{
+                    user.wins++;
+                    user.curr_streak += 1;
+                }
+
+                //aggiorno i rate
+                user.win_rate = (float) user.wins / user.played;
+                user.loss_rate = (float) user.failed / user.played;
+
+                //update streak
+                if(user.curr_streak > user.max_streak){
+                    user.max_streak = user.curr_streak;
+                }
+            }
+        }
+
+        persistence.mark_user(user);
     }
 
     //renddo gli user loggati

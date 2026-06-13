@@ -44,7 +44,7 @@ public class SubmitProposalOp extends Operation{
         }
 
         //creo la jsonstring
-        return ClientJsonUtils.get_submitProposal_message(words);
+        return ClientJsonUtils.get_submitProposal_message(game.puzzle_id.get() ,words);
     }
 
     @Override

@@ -1,17 +1,17 @@
 package server.communication;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import server.game.GameManager;
-import server.puzzles.UserPuzzle;
 import server.users.UserManager;
-import server.users.UserSession;
 
-import javax.net.ssl.SSLEngineResult;
 import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ClientHandler implements Runnable{
     private Socket sock;
@@ -65,7 +65,6 @@ public class ClientHandler implements Runnable{
                 }
 
                 if(done){
-                    //se ci sono eccezioni o alcune op come logout
                     break;
                 }
             }
@@ -97,6 +96,9 @@ public class ClientHandler implements Runnable{
                 //casistiche per ogni operation possibile, creano i payload in json
                 case "login":
                     payload = login_method(json);
+                    if(user_id == -1){
+                        done = true;
+                    }
                     break;
 
                 case "logout":
@@ -105,8 +107,25 @@ public class ClientHandler implements Runnable{
                     break;
 
                 case "register":
+                    if(user_id == -1){
+                        done = true;
+                    }
                     payload = register_method(json);
-                    done = true;
+                    break;
+
+                case "updateCredentials":
+                    if(user_id == -1){
+                        done = true;
+                    }
+                    payload = update_method(json);
+                    break;
+
+                case "submitProposal":
+                    payload = proposal_method(json);
+                    break;
+
+                case "requestGameInfo":
+                    payload = puzzle_info_method(json);
                     break;
 
                 default:
@@ -141,11 +160,15 @@ public class ClientHandler implements Runnable{
         if(sd.getStatus() == ResponseStatus.OK){
             user_id = user_m.get_id_from_username(username);
             game_m.log_participant(user_id);
-        }else{
-            done = true;
         }
 
-        return build_response("login", sd);
+        //creo il payload a mano perché c'è anche new_id
+        JsonObject new_json = new JsonObject();
+        new_json.addProperty("operation", "login");
+        new_json.addProperty("status", sd.getStatus().getCode());
+        new_json.addProperty("description", sd.getDescription());
+        new_json.addProperty("new_id", game_m.current_id());
+        return new_json.toString();
     }
 
     //non richiede input dato che ha solo il campo operation
@@ -161,5 +184,43 @@ public class ClientHandler implements Runnable{
         StatusDescription sd = user_m.register(username, password);
 
         return build_response("register", sd);
+    }
+
+    private String update_method(JsonObject json){
+        String username = json.get("oldUsername").getAsString();
+        String password = json.get("oldPsw").getAsString();
+
+        String new_u = null, new_p = null;
+        if(json.get("newUsername") != null){
+            new_u = json.get("newUsername").getAsString();
+        }
+        if(json.get("newPsw") != null){
+            new_p = json.get("newPsw").getAsString();
+        }
+
+        StatusDescription sd = user_m.update_credentials(username, password, new_u, new_p);
+
+        return build_response("updateCredentials", sd);
+    }
+
+    private String proposal_method(JsonObject json){
+        List<String> words = new ArrayList<>();
+        int id = json.get("puzzle_id").getAsInt();
+
+        //estraggo le stringhe dal json
+        JsonArray jsonArray = json.get("words").getAsJsonArray();
+        for (int i = 0; i < jsonArray.size(); i++) {
+            words.add(jsonArray.get(i).getAsString());
+        }
+
+        StatusDescription sd = game_m.submit_proposal(user_id, id, words);
+        return build_response("submitProposal", sd);
+    }
+
+    private String puzzle_info_method(JsonObject json){
+        int id = json.get("gameId").getAsInt();
+
+        StatusDescription sd = game_m.get_puzzle_info(user_id, id);
+        return build_response("requestGameInfo", sd);
     }
 }

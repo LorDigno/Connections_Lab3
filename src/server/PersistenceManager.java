@@ -33,10 +33,10 @@ public class PersistenceManager {
 
     //mark dirty chiamati dagli altri manager
     public void mark_user(User u){
-        user_cache.get().put(u.getId(), u);
+        user_cache.get().putIfAbsent(u.getId(), u);
     }
     public void mark_user_puzzle(UserPuzzle up){
-        user_puzzle_cache.get().put(up.user.getId(), up);
+        user_puzzle_cache.get().putIfAbsent(up.user.getId(), up);
     }
     public void mark_game(RealPuzzle rp){
         game_cache.get().add(rp);
