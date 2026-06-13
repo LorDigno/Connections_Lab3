@@ -78,8 +78,6 @@ public class ClientHandler implements Runnable{
     private String handle_request(String request){
         String payload = null;
 
-
-
         JsonObject json = JsonParser.parseString(request).getAsJsonObject();
         String operation = json.get("operation").getAsString();
 
@@ -126,6 +124,14 @@ public class ClientHandler implements Runnable{
 
                 case "requestGameInfo":
                     payload = puzzle_info_method(json);
+                    break;
+
+                case "requestGameStats":
+                    payload = puzzle_stats_method(json);
+                    break;
+
+                case "requestPlayerStats":
+                    payload = player_stats_method();
                     break;
 
                 default:
@@ -222,5 +228,18 @@ public class ClientHandler implements Runnable{
 
         StatusDescription sd = game_m.get_puzzle_info(user_id, id);
         return build_response("requestGameInfo", sd);
+    }
+
+    private String puzzle_stats_method(JsonObject json){
+        int id = json.get("gameId").getAsInt();
+
+        StatusDescription sd = game_m.get_puzzle_stats(id);
+        return build_response("requestGameStats", sd);
+    }
+
+    //niente json che ha solo il campo operation
+    private String player_stats_method(){
+        StatusDescription sd = user_m.get_player_stats(user_id);
+        return build_response("requestPlayerStats", sd);
     }
 }

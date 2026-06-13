@@ -118,7 +118,7 @@ public class PersistenceManager {
 
         //se c'è sovrascrivo il puzzle
         if(puzzle != null){
-            uf.partite.put(puzzle.real.id, new UserPuzzleData(puzzle));
+            uf.partite.put(new Integer(puzzle.real.id).toString(), new UserPuzzleData(puzzle));
         }
 
         // scrittura sicura con file temporaneo

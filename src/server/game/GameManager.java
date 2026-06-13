@@ -1,14 +1,20 @@
 package server.game;
 
+import com.google.gson.Gson;
 import server.PersistenceManager;
 import server.communication.ClientHandler;
 import server.communication.ResponseStatus;
 import server.communication.StatusDescription;
 import server.puzzles.RealPuzzle;
+import server.puzzles.RealPuzzleFile;
 import server.puzzles.UserPuzzle;
+import server.puzzles.UserPuzzleData;
 import server.users.User;
 import server.users.UserManager;
 
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.*;
@@ -26,6 +32,7 @@ public class GameManager{
     private UserManager users;
     private ExecutorService pool;
     private UDPNotifier udp_notifier;
+    private volatile long start_time;
 
     //monitor per endgame
     private final Object game_lock;
@@ -37,13 +44,14 @@ public class GameManager{
     public GameManager(GameServer server, UserManager users, UDPNotifier udp_notifier, PersistenceManager pers){
         this.server = server;
         this.users = users;
-        loader = new GameDataLoader(server.game_time);
+        loader = new GameDataLoader();
         this.udp_notifier = udp_notifier;
         this.persistance = pers;
 
         game_lock = new Object();
         changing_game =  false;
         active_requests = 0;
+        start_time = 0;
 
         participants = new ConcurrentHashMap<>();
     }
@@ -51,6 +59,7 @@ public class GameManager{
     //supponiamo che sia stato tutto ripulito nel end_game precedente
     public void launch(){
         current = loader.load_next();
+        start_time = System.currentTimeMillis();
         pool = Executors.newCachedThreadPool();
 
         timer = Executors.newSingleThreadScheduledExecutor();
@@ -80,6 +89,8 @@ public class GameManager{
             }
         }
 
+        current.is_current.set(false);
+
         //salvo le implicazioni delle partite finite
         for(Integer i: participants.keySet()){
             //solo di quelli di cui non si è già fatto game_over
@@ -90,12 +101,10 @@ public class GameManager{
 
         String leaderboard = get_current_leaderboard();
 
-        //salvo la partita vecchia
-        save();
-
         //creo la partita nuova
         RealPuzzle old_game = current;
         current = loader.load_next();
+        start_time = System.currentTimeMillis();
 
         //notifico gli utenti attivi della fine della partita
         udp_notifier.notify(old_game, current, leaderboard);
@@ -113,11 +122,12 @@ public class GameManager{
 
         //le richieste ritornano valide
         changing_game = false;
-    }
+        persistance.flush_all();
 
-    //avvia in qualche modo il salvataggio della partita
-    public void save(){
-        //tbd
+        //adesso che sono stati flushati quelli vecchi posso mettere in cache quelli nuovi
+        for(Integer u: participants.keySet()){
+            persistance.mark_user_puzzle(participants.get(u));
+        }
     }
 
     //per il conteggio delle operazioni a mezzo che bloccano endgame
@@ -228,7 +238,10 @@ public class GameManager{
             }
 
             current.total_score += up.score;
+
         }
+
+        persistance.mark_game(current);
     }
 
     //genera la classifica attuale della partita in corso
@@ -258,8 +271,88 @@ public class GameManager{
     }
 
     public StatusDescription get_puzzle_info(int user_id, int puzzle_id){
+        StatusDescription out = new StatusDescription();
+        UserPuzzle up = participants.get(user_id);
 
+        if(up == null){
+            out.setStatus(ResponseStatus.NOT_LOGGED);
+            out.setDescription("Devi essere loggato per vedere i dati delle partite");
+            return  out;
+        }
+
+        if(puzzle_id == -1 || puzzle_id == current_id()){
+            out.setStatus(ResponseStatus.OK);
+
+            if(up.is_finished()){
+                out.setDescription(up.get_puzzle_stats());
+                return out;
+            }
+
+            //allora gli rendo il corrente
+            String desc = up.get_puzzle_state();
+            desc += "Tempo Rimasto: " + get_time_left() + "ms\n";
+            out.setDescription(desc);
+            return out;
+        }
+
+        //non è il corrente
+        //va cercato nel file data/users/id.json
+        UserPuzzleData upd = users.get_user_puzzle(user_id, puzzle_id);
+
+        if(upd == null){
+            out.setStatus(ResponseStatus.INFO_GAME_NOT_PLAYED);
+            out.setDescription("La partita richiesta non esiste o non è stata giocata");
+            return out;
+        }
+
+        up = new UserPuzzle(upd);
+        out.setStatus(ResponseStatus.OK);
+        out.setDescription(up.get_puzzle_stats());
+
+        return out;
     }
 
+    public StatusDescription get_puzzle_stats(int puzzle_id){
+        StatusDescription out = new StatusDescription();
+
+        if(puzzle_id == -1 || puzzle_id == current_id()){
+            //allora gli rendo il corrente
+            String desc = current.get_stats();
+            desc += "Tempo Rimasto: " + get_time_left() + "ms\n";
+            out.setDescription(desc);
+            return out;
+        }
+
+        //devo cercare lo storico
+        RealPuzzleFile rpf = get_finished_game(puzzle_id);
+        if(rpf == null){
+            out.setStatus(ResponseStatus.STATS_GAME_NOT_FOUND);
+            out.setDescription("La partita di id: \"" + puzzle_id + "\" non esiste");
+            return out;
+        }
+
+        //posso creare il realpuzzle corrispondente
+        RealPuzzle rp = new RealPuzzle(rpf);
+        out.setStatus(ResponseStatus.OK);
+        out.setDescription(rp.get_stats());
+        return out;
+    }
+
+    private RealPuzzleFile get_finished_game(int id){
+        File file = new File("data/puzzles/" + id + ".json");
+        if(!file.exists()) return null;
+
+        Gson gson = new Gson();
+        try(FileReader reader = new FileReader(file)){
+            return gson.fromJson(reader, RealPuzzleFile.class);
+        } catch(IOException e){
+            return null;
+        }
+    }
+
+    private int get_time_left(){
+        //in alcuni casi limite può venire negativo
+        return (int) Math.max(0,server.game_time - (System.currentTimeMillis() -  start_time));
+    }
 
 }

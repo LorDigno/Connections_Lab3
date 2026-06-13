@@ -53,11 +53,11 @@ public class User {
         this.four_mistakes = uf.mistake4;
     }
 
-    public String getPassword() {
+    public synchronized String getPassword() {
         return password;
     }
 
-    public String getUsername() {
+    public synchronized String getUsername() {
         return username;
     }
 
@@ -78,5 +78,29 @@ public class User {
     public synchronized void add_game(){
         played += 1;
         incomplete += 1;
+    }
+
+    public synchronized String get_stats(){
+        String stats = "";
+        stats += "Puzzle giocati: " + played + "\n";
+        stats += "Puzzle perfetti (vinti con 0 errori): " + perfect + "\n";
+        stats += "Puzzle con 1 errore: " + one_mistake + "\n";
+        stats += "Puzzle con 2 errori: " + two_mistakes + "\n";
+        stats += "Puzzle con 3 errori: " + three_mistakes + "\n";
+        stats += "Puzzle con 4 errori: " + four_mistakes + "\n";
+        stats += "Puzzle non completati: " + incomplete + "\n";
+
+        if(played == 0){
+            stats += "WinRate: " + 0 + "%\n";
+            stats += "LossRate: " + 0 + "%\n";
+        }else{
+            stats += "WinRate: " + (float) wins/played + "%\n";
+            stats += "LossRate: " + (float) failed/played + "%\n";
+        }
+
+        stats += "Filone attuale: " + curr_streak + " partite vinte di fila\n";
+        stats += "Filone migliore: " + max_streak + " partite vinte di fila\n";
+
+        return stats;
     }
 }

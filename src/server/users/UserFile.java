@@ -20,10 +20,11 @@ public class UserFile {
     int max_streak;
     int perfects;
     int mistake1, mistake2, mistake3, mistake4;
-    public Map<Integer, UserPuzzleData> partite;
+    //per quanto sono interi, gson può dare problemi
+    public Map<String, UserPuzzleData> partite;
 
     public UserFile(){
-        this.partite = new HashMap<Integer, UserPuzzleData>();
+        this.partite = new HashMap<String, UserPuzzleData>();
     }
 
     public void fill(User user){

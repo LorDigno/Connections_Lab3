@@ -11,9 +11,11 @@ public class UserPuzzle {
     public User user;
     public List<String> leftover_words;
     public List<List<String>> good_proposals;
-    public int mistakes, score, guesses_left, right_ones;
+    public int mistakes, score, guesses_left, right_ones, real_id;
     private volatile boolean finished;
-    //time_left in millisecondi
+
+    //serve per quando carico un file finito che non c'è realpuzzle
+    private Map<String, List<String>> real_solution;
 
     public UserPuzzle(User user, RealPuzzle puzzle){
         this.real = puzzle;
@@ -25,6 +27,18 @@ public class UserPuzzle {
         right_ones = 0;
         good_proposals = new ArrayList<List<String>>();
         finished = false;
+    }
+
+    public UserPuzzle(UserPuzzleData data){
+        this.real_id = data.game_id;
+        this.leftover_words = data.leftover_words;
+        this.good_proposals = data.good_proposals;
+        this.real_solution = data.solution;
+        this.mistakes = data.mistakes;
+        this.score = data.score;
+        this.right_ones = data.right_ones;
+
+        this.real = null;
     }
 
     public boolean is_finished() {
@@ -128,9 +142,8 @@ public class UserPuzzle {
         return out;
     }
 
-    public String get_puzzle_state() {
+    public synchronized String get_puzzle_state() {
         String puzzle = "";
-        puzzle += "Tempo Rimasto: " + real.time_left + "ms\n";
         puzzle += "Proposte Corrette: " + good_proposals.toString() + "\n";
         puzzle += "Parole Rimaste: " + leftover_words.toString() + "\n";
         puzzle += "Errori Commessi: " + mistakes + "\n";
@@ -138,11 +151,14 @@ public class UserPuzzle {
         return puzzle;
     }
 
-    public String get_puzzle_stats() {
+    public synchronized String get_puzzle_stats() {
         String puzzle = "";
-        puzzle += "Gruppi Corretti: " + real.solution.toString() + "\n";
-        int corrects = 4 - mistakes - guesses_left;
-        puzzle += "Proposte Corrette: " + corrects + "\n";
+        if(real == null){
+            puzzle += "Gruppi Corretti: " + real_solution.toString() + "\n";
+        }else{
+            puzzle += "Gruppi Corretti: " + real.solution.toString() + "\n";
+        }
+        puzzle += "Proposte Corrette: " + right_ones + "\n";
         puzzle += "Errori Commessi: " + mistakes + "\n";
         puzzle += "Punteggio: " + score + "\n";
         return puzzle;

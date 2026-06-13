@@ -6,13 +6,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class RealPuzzle {
     public AtomicBoolean is_current;
-    public int id, partecipants, finished, winners, time_left, total_score;;
+    public int id, participants, finished, winners, time_left, total_score;;
     private final Map<String, String> groups;
     public Map<String, List<String>> solution;
 
-    public RealPuzzle(int id, Map<String,String> groups, int time_left){
+    public RealPuzzle(int id, Map<String,String> groups){
         this.id = id;
-        this.time_left = time_left;
         this.groups = groups;
 
         //inverto solutions da parola -> gruppo a gruppo -> parola
@@ -29,11 +28,22 @@ public class RealPuzzle {
             solution.get(name).add(word);
         }
 
-        partecipants = 0;
+        participants = 0;
         finished = 0;
         winners = 0;
         total_score = 0;
         is_current = new AtomicBoolean(true);
+    }
+
+    public RealPuzzle(RealPuzzleFile rpf){
+        this.participants = rpf.partecipants;
+        this.id = rpf.id;
+        this.winners = rpf.winners;
+        this.finished = rpf.finished;
+        this.total_score = rpf.total_score;
+
+        groups = null;
+        is_current = new AtomicBoolean(false);
     }
 
     public Map<String, String> getGroups() {
@@ -41,18 +51,20 @@ public class RealPuzzle {
     }
 
     public synchronized void add_participant(){
-        partecipants++;
+        participants++;
     }
 
-    public String toString(){
+    public synchronized String get_stats(){
         String puzzle = "";
-        if(is_current.get()){
-            puzzle += "Tempo Rimasto: " + time_left + "ms\n";
+        if(!is_current.get()){
+            if(participants == 0){
+                puzzle += "Punteggio Medio: " + 0 + "\n";
+            }else{
+                puzzle += "Punteggio Medio: " + (float)total_score/ participants + "\n";
+            }
+
         }
-        else{
-            puzzle += "Punteggio Medio: " + (float)total_score/partecipants + "\n";
-        }
-        puzzle += "Partecipanti: " + partecipants + "\n";
+        puzzle += "Partecipanti: " + participants + "\n";
         puzzle += "Conclusori: " + finished + "\n";
         puzzle += "Vincitori: " + winners + "\n";
         return puzzle;

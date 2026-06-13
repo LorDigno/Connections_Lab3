@@ -5,6 +5,7 @@ import server.game.GameServer;
 import server.PersistenceManager;
 import server.communication.ResponseStatus;
 import server.communication.StatusDescription;
+import server.puzzles.UserPuzzleData;
 
 import java.io.File;
 import java.io.FileReader;
@@ -237,7 +238,7 @@ public class UserManager {
         persistence.mark_user(user);
     }
 
-    //renddo gli user loggati
+    //rendo gli user loggati
     public Set<Integer> getActive_users() {
         return active_sessions.keySet();
     }
@@ -289,5 +290,37 @@ public class UserManager {
             //tbd
             return null;
         }
+    }
+
+    public UserPuzzleData get_user_puzzle(int user_id, int puzzle_id){
+        File file = new File("data/users/" + user_id + ".json");
+        if(!file.exists()) return null;
+
+        Gson gson = new Gson();
+        try(FileReader reader = new FileReader(file)){
+            //cerco la partita giusta
+            UserFile uf = gson.fromJson(reader, UserFile.class);
+            return uf.partite.get(String.valueOf(puzzle_id));
+
+        } catch(IOException e){
+            //vuol dire che non c'è la partita
+            return null;
+        }
+    }
+
+    public StatusDescription get_player_stats(int id){
+        StatusDescription out = new StatusDescription();
+
+        //come al solito non si sa mai
+        if(!users.containsKey(id)){
+            out.setStatus(ResponseStatus.USER_NOT_FOUND);
+            out.setDescription("Lo user non esite");
+            return out;
+        }
+
+        User u = users.get(id);
+        out.setStatus(ResponseStatus.OK);
+        out.setDescription(u.get_stats());
+        return out;
     }
 }

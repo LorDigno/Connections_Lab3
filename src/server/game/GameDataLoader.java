@@ -14,12 +14,8 @@ import java.util.Map;
 public class GameDataLoader {
     // streaming reader tenuto aperto tra una chiamata e l'altra
     private JsonReader reader;
-    private int games_loaded, game_time;
 
-    public GameDataLoader(int game_time){
-        this.game_time = game_time;
-        games_loaded = 0;
-
+    public GameDataLoader(){
         try{
             reader = new JsonReader(new FileReader("data/Connections_Data.json"));
             reader.beginArray();
@@ -38,7 +34,6 @@ public class GameDataLoader {
         try{
             //se c'è un prossimo elemento nell'array lo leggo
             if (reader.hasNext()) {
-                games_loaded++;
                 return parse_game();
             }
 
@@ -126,6 +121,6 @@ public class GameDataLoader {
         }
         reader.endObject();
 
-        return new RealPuzzle(id, groups, game_time);
+        return new RealPuzzle(id, groups);
     }
 }
