@@ -63,6 +63,7 @@ public class ClientHandler implements Runnable{
                     out.write(buf.array());
                     out.flush();
                 }
+                System.out.println(response);
 
                 if(done){
                     break;
@@ -70,9 +71,13 @@ public class ClientHandler implements Runnable{
             }
 
         }catch(IOException e){
-            //tbd
+            System.err.println("Client disconnesso o errore di I/O: " + e.getMessage());
+        }catch (Exception e) {
+            System.err.println("ERRORE CRITICO NEL SERVER DURANTE L'ELABORAZIONE:");
+            e.printStackTrace();
         }
 
+        clear();
     }
 
     private String handle_request(String request){
@@ -94,27 +99,17 @@ public class ClientHandler implements Runnable{
                 //casistiche per ogni operation possibile, creano i payload in json
                 case "login":
                     payload = login_method(json);
-                    if(user_id == -1){
-                        done = true;
-                    }
                     break;
 
                 case "logout":
                     payload = logout_method();
-                    done = true;
                     break;
 
                 case "register":
-                    if(user_id == -1){
-                        done = true;
-                    }
                     payload = register_method(json);
                     break;
 
                 case "updateCredentials":
-                    if(user_id == -1){
-                        done = true;
-                    }
                     payload = update_method(json);
                     break;
 
@@ -134,8 +129,13 @@ public class ClientHandler implements Runnable{
                     payload = player_stats_method();
                     break;
 
+                case "requestLeaderboard":
+                    payload = leaderboard_method(json);
+                    break;
+
                 default:
                     //operazione non nota
+                    done = true;
                     return null;
             }
         }finally{
@@ -157,7 +157,7 @@ public class ClientHandler implements Runnable{
 
     private String login_method(JsonObject json){
         String username = json.get("username").getAsString();
-        String password = json.get("password").getAsString();
+        String password = json.get("psw").getAsString();
         int udp_port = json.get("udp_port").getAsInt();
 
         StatusDescription sd = user_m.session_login(username, password,
@@ -185,7 +185,7 @@ public class ClientHandler implements Runnable{
 
     private String register_method(JsonObject json){
         String username = json.get("username").getAsString();
-        String password = json.get("password").getAsString();
+        String password = json.get("psw").getAsString();
 
         StatusDescription sd = user_m.register(username, password);
 
@@ -241,5 +241,20 @@ public class ClientHandler implements Runnable{
     private String player_stats_method(){
         StatusDescription sd = user_m.get_player_stats(user_id);
         return build_response("requestPlayerStats", sd);
+    }
+
+    private String leaderboard_method(JsonObject json){
+        String who = json.get("playerName").getAsString();
+        int num = json.get("topPlayers").getAsInt();
+
+        StatusDescription sd = user_m.get_overall_leaderboard(who, num, user_id);
+        return build_response("requestLeaderboard", sd);
+    }
+
+    //se c'è roba da liberare lo faccio qua
+    private void clear(){
+        if(user_id != -1){
+            user_m.remove_active(user_id);
+        }
     }
 }

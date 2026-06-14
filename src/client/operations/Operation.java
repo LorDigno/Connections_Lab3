@@ -82,7 +82,9 @@ public abstract class Operation{
     }
 
     //nel caso alcune implementazioni necessitino di un "finally" dopo communicate
-    public abstract void on_fail();
+    public void on_fail(){
+        game.reset();
+    };
 
     //analisi della risposta e stampa dei risultati a schermo
     public abstract void digest(String response);

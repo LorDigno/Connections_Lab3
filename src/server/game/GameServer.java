@@ -1,13 +1,13 @@
 package server.game;
 
 import server.PersistenceManager;
+import server.communication.UDPNotifier;
 import server.users.UserManager;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -34,14 +34,11 @@ public class GameServer {
     public void launch(){
         //inizializzo i manager degli utenti, partite e della persistenza
         persistence_m = new PersistenceManager();
-        user_m = new UserManager(this, persistence_m);
 
-        //avvio il thread delle notifiche udp
-        //implementa runnable
-        udp_notifier = new UDPNotifier(user_m);
-        new Thread(udp_notifier).start();
+        //classe che gestisce le notifiche udp
+        udp_notifier = new UDPNotifier();
 
-
+        user_m = new UserManager(this, persistence_m, udp_notifier);
         game_m = new GameManager(this, user_m, udp_notifier, persistence_m);
 
         //schedulo in modo periodico il l'aggiornamento dei file su disco

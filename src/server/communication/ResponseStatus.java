@@ -13,19 +13,22 @@ public enum ResponseStatus {
     // login
     LOGIN_ALREADY_CONNECTED(10),
 
+    //update credentials
+    UPDATE_ACTIVE_USER(20),
+
     //submit proposal
-    PROPOSAL_WRONG_SIZE(20),
-    PROPOSAL_UNKNOWN_WORD(21),
-    PROPOSAL_ALREADY_GROUPED(22),
-    PROPOSAL_REPEATED_WORD(23),
-    PROPOSAL_OLD_GAME(24),
-    PROPOSAL_ALREADY_PLAYED(25),
+    PROPOSAL_WRONG_SIZE(30),
+    PROPOSAL_UNKNOWN_WORD(31),
+    PROPOSAL_ALREADY_GROUPED(32),
+    PROPOSAL_REPEATED_WORD(33),
+    PROPOSAL_OLD_GAME(34),
+    PROPOSAL_ALREADY_PLAYED(35),
 
     //game info
-    INFO_GAME_NOT_PLAYED(30),
+    INFO_GAME_NOT_PLAYED(40),
 
     //game stats
-    STATS_GAME_NOT_FOUND(40);
+    STATS_GAME_NOT_FOUND(50);
 
     private final int code;
 

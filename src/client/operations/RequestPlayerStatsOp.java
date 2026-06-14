@@ -27,9 +27,6 @@ public class RequestPlayerStatsOp extends Operation{
     }
 
     @Override
-    public void on_fail() {}
-
-    @Override
     public void digest(String response) {
         int response_status = ClientJsonUtils.get_int(response, "status", name);
         String desc = ClientJsonUtils.get_string(response, "description",name);

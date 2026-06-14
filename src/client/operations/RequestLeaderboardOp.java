@@ -35,7 +35,8 @@ public class RequestLeaderboardOp extends Operation {
                break;
             }
             if(in.equals("n")){
-                num = get_int("Il numero di utenti da mostrare (0 per tutti): ");
+                num = get_int("Il numero di utenti da mostrare (<=0 per tutti): ");
+                num = Math.max(0, num);
                 break;
             }
 

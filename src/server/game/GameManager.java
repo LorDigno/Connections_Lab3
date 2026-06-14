@@ -5,6 +5,7 @@ import server.PersistenceManager;
 import server.communication.ClientHandler;
 import server.communication.ResponseStatus;
 import server.communication.StatusDescription;
+import server.communication.UDPNotifier;
 import server.puzzles.RealPuzzle;
 import server.puzzles.RealPuzzleFile;
 import server.puzzles.UserPuzzle;
@@ -99,7 +100,7 @@ public class GameManager{
             }
         }
 
-        String leaderboard = get_current_leaderboard();
+        String leaderboard = get_current_leaderboard(20);
 
         //creo la partita nuova
         RealPuzzle old_game = current;
@@ -107,7 +108,7 @@ public class GameManager{
         start_time = System.currentTimeMillis();
 
         //notifico gli utenti attivi della fine della partita
-        udp_notifier.notify(old_game, current, leaderboard);
+        udp_notifier.notify_active(old_game, current, leaderboard, users.get_active_sessions());
         timer.schedule(this::end_game, server.game_time, TimeUnit.MILLISECONDS);
 
         //aggiorno participants agli user attivi
@@ -121,7 +122,9 @@ public class GameManager{
         }
 
         //le richieste ritornano valide
-        changing_game = false;
+        synchronized(game_lock) {
+            changing_game = false;
+        }
         persistance.flush_all();
 
         //adesso che sono stati flushati quelli vecchi posso mettere in cache quelli nuovi
@@ -217,7 +220,7 @@ public class GameManager{
 
             //aggiungo la classifica alla descrizione
             out.setDescription(out.getDescription()
-                    + "\nLa classifica attuale è:\n" + get_current_leaderboard());
+                    + "\nLa classifica attuale è:\n" + get_current_leaderboard(100));
         }
 
         return out;
@@ -225,7 +228,7 @@ public class GameManager{
 
     private void game_over(int user_id, UserPuzzle up){
         //cambio i dati dell'utente
-        users.puzzle_done(user_id, up.mistakes, up.guesses_left, up.right_ones);
+        users.puzzle_done(user_id, up.mistakes, up.guesses_left, up.right_ones, up.score);
 
         //cambio i dati del realgame
         synchronized(current){
@@ -238,14 +241,13 @@ public class GameManager{
             }
 
             current.total_score += up.score;
-
         }
 
         persistance.mark_game(current);
     }
 
-    //genera la classifica attuale della partita in corso
-    public String get_current_leaderboard() {
+    //genera la classifica attuale della partita in corso (i primi dim)
+    public String get_current_leaderboard(int dim) {
         List<UserPuzzle> leaderboard = new ArrayList<>();
         for (UserPuzzle puzzle : participants.values()) {
             leaderboard.add(puzzle);
@@ -255,15 +257,17 @@ public class GameManager{
                 new Comparator<UserPuzzle>() {
                     @Override
                     public int compare(UserPuzzle p1, UserPuzzle p2) {
-                        //se p2 ha più punti, torna numero positivo (p2 sale)
-                        //se p1 ha più punti, torna numero negativo (p1 sale)
                         return Integer.compare(p2.score, p1.score);
                     }
                 }
         );
 
+        //quanti mostrarne
+        int limit = Math.min(dim, leaderboard.size());
+
         String out = "";
-        for(UserPuzzle up: leaderboard){
+        for(int i = 0; i < limit; i++){
+            UserPuzzle up = leaderboard.get(i);
             out += up.user.getUsername() + " ha totalizzato: " + up.score + " punti\n";
         }
 
@@ -317,6 +321,7 @@ public class GameManager{
 
         if(puzzle_id == -1 || puzzle_id == current_id()){
             //allora gli rendo il corrente
+            out.setStatus(ResponseStatus.OK);
             String desc = current.get_stats();
             desc += "Tempo Rimasto: " + get_time_left() + "ms\n";
             out.setDescription(desc);

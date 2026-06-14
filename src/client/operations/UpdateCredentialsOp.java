@@ -6,7 +6,6 @@ import client.UserStatus;
 
 public class UpdateCredentialsOp extends Operation {
 
-    private boolean clear = false;
     private String old;
     public UpdateCredentialsOp(GameClient game){
         this.game = game;
@@ -17,8 +16,6 @@ public class UpdateCredentialsOp extends Operation {
     public boolean checks(){
         //se non sono loggato non ho una connessione tcp aperta
         if(game.u_status == UserStatus.NOT_LOGGED || game.comm_thread == null){
-            clear = true;
-
             //creo un socketChannel temporaneo da richiudere in digest e on_fail
             boolean sock = connessione();
             if(!sock){
@@ -57,13 +54,6 @@ public class UpdateCredentialsOp extends Operation {
     }
 
     @Override
-    public void on_fail(){
-        if(clear){
-            game.reset();
-        }
-    }
-
-    @Override
     public void digest(String response) {
         int response_status = ClientJsonUtils.get_int(response, "status", name);
         String desc = ClientJsonUtils.get_string(response, "description",name);
@@ -80,15 +70,13 @@ public class UpdateCredentialsOp extends Operation {
 
             case -1:
                 System.out.println("Errore di comunicazione durante l'aggiornamento delle credenziali");
+                game.reset();
                 break;
 
             default:
                 //comunico all'utente l'errore
                 System.out.println("Errore [" + response_status +"]\n\t" + desc);
-        }
-
-        if(clear) {
-            game.reset();
+                game.reset();
         }
     }
 }

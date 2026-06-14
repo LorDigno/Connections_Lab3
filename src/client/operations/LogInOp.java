@@ -19,15 +19,18 @@ public class LogInOp extends Operation {
 
     @Override
     public boolean checks(){
-        if(game.u_status != UserStatus.NOT_LOGGED){
+        if(game.u_status == UserStatus.LOGGED_IN){
             System.out.println("---\tHai gia eseguito il login come: " + game.username);
             return false;
         }
 
-        boolean sock = connessione();
-        if(!sock){
-            return false;
+        if(game.u_status != UserStatus.CONNECTED){
+            boolean sock = connessione();
+            if(!sock){
+                return false;
+            }
         }
+
 
         return true;
     }
@@ -47,7 +50,8 @@ public class LogInOp extends Operation {
 
         //trovo una porta udp libera
         int udp_port = 0;
-        try (DatagramChannel channel = DatagramChannel.open()) {
+        try{
+            DatagramChannel channel = DatagramChannel.open();
             //se fai binding su 0 l'os ne assegna una libera
             channel.bind(new InetSocketAddress(0));
 
@@ -66,16 +70,11 @@ public class LogInOp extends Operation {
     }
 
     @Override
-    public void on_fail(){
-        game.reset();
-    }
-
-    @Override
     public void digest(String response){
         String username = game.username;
 
         int response_status = ClientJsonUtils.get_int(response, "status", name);
-        String desc = ClientJsonUtils.get_string(response,"descriprition",name);
+        String desc = ClientJsonUtils.get_string(response,"description",name);
 
         if (response_status == 0) {
             //confermo la riuscita del login e cambio status

@@ -68,7 +68,7 @@ public class UserPuzzle {
         ArrayList<String> already = new ArrayList<>();
         String group = null;
         while(iter.hasNext()){
-            String word = iter.next();
+            String word = iter.next().toUpperCase();
 
             //prenso il nome del gruppo corrispondente
             String current_guess = real.getGroups().get(word);

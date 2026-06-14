@@ -20,6 +20,7 @@ public class UserFile {
     int max_streak;
     int perfects;
     int mistake1, mistake2, mistake3, mistake4;
+    int total_score;
     //per quanto sono interi, gson può dare problemi
     public Map<String, UserPuzzleData> partite;
 
@@ -46,6 +47,7 @@ public class UserFile {
             this.mistake2 = user.two_mistakes;
             this.mistake3 = user.three_mistakes;
             this.mistake4 = user.four_mistakes;
+            this.total_score = user.total_score;
         }
 
     }

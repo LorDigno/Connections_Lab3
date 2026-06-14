@@ -9,8 +9,8 @@ public class User {
     private String username, password;
 
     //statistiche dell'utente
-    public int played, curr_streak, max_streak, perfect, one_mistake, two_mistakes,
-            three_mistakes, four_mistakes,failed, incomplete, wins;
+    protected int played, curr_streak, max_streak, perfect, one_mistake, two_mistakes,
+            three_mistakes, four_mistakes,failed, incomplete, wins, total_score;
     public float win_rate, loss_rate;
 
     public User(String username, String password){
@@ -32,6 +32,7 @@ public class User {
         this.two_mistakes = 0;
         this.three_mistakes = 0;
         this.four_mistakes = 0;
+        this.total_score = 0;
     }
     
     public User(UserFile uf){
@@ -51,6 +52,7 @@ public class User {
         this.two_mistakes = uf.mistake2;
         this.three_mistakes = uf.mistake3;
         this.four_mistakes = uf.mistake4;
+        this.total_score = uf.total_score;
     }
 
     public synchronized String getPassword() {
@@ -72,6 +74,10 @@ public class User {
 
     public int getId(){
         return this.id;
+    }
+
+    public synchronized int get_score(){
+        return this.total_score;
     }
 
     //al login si aggiunge una partita giocata e una incompleta

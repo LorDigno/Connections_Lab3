@@ -34,11 +34,6 @@ public class LogOutOp extends Operation { ;
     }
 
     @Override
-    public void on_fail(){
-        game.reset();
-    }
-
-    @Override
     public void digest(String response) {
         int response_status = ClientJsonUtils.get_int(response, "status", name);
 

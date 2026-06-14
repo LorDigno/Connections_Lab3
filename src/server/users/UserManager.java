@@ -1,6 +1,7 @@
 package server.users;
 
 import com.google.gson.Gson;
+import server.communication.UDPNotifier;
 import server.game.GameServer;
 import server.PersistenceManager;
 import server.communication.ResponseStatus;
@@ -11,8 +12,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.Collection;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class UserManager {
@@ -21,15 +21,16 @@ public class UserManager {
     private final ConcurrentHashMap<Integer, UserSession> active_sessions;
     private final ConcurrentHashMap<String, Integer> user_id;
     private PersistenceManager persistence;
-
+    private UDPNotifier udpNotifier;
     private GameServer server;
 
-    public UserManager(GameServer server, PersistenceManager pers){
+    public UserManager(GameServer server, PersistenceManager pers, UDPNotifier udp){
         users = new ConcurrentHashMap<>();
         active_sessions = new ConcurrentHashMap<>();
         user_id = new ConcurrentHashMap<>();
         this.server = server;
         this.persistence = pers;
+        this.udpNotifier = udp;
 
         load_from_disk();
     }
@@ -65,7 +66,8 @@ public class UserManager {
         }
 
         out.setStatus(ResponseStatus.OK);
-        out.setDescription("Login eseguito correttamente");
+        out.setDescription("Login eseguito correttamente.\n " +
+                "Puoi vedere la nua partita con requestGameInfo della partita corrente\n");
         return out;
     }
 
@@ -138,6 +140,13 @@ public class UserManager {
             return out;
         }
 
+        //può crearsi comunque l'incosistenza se logga durante il cambio di credenziali
+        if(active_sessions.containsKey(id)){
+            out.setStatus(ResponseStatus.UPDATE_ACTIVE_USER);
+            out.setDescription("Non si può cambiare le credenziali di un utente attualmente in gioco");
+            return out;
+        }
+
         User user = users.get(id);
 
         if(!user.getPassword().equals(password)){
@@ -176,15 +185,23 @@ public class UserManager {
         //segnalo che è da flushare
         persistence.mark_user(user);
 
+        //se si è creato uno stato incosistente nel client lo kicko
+        if(active_sessions.containsKey(id)){
+            udpNotifier.kick(active_sessions.get(id));
+        }
+
         return out;
     }
 
-    public void puzzle_done(int id, int mistakes, int guesses_left, int right_ones){
+    public void puzzle_done(int id, int mistakes, int guesses_left, int right_ones, int score){
         User user = users.get(id);
 
         //l'intero cambiamento dello stato deve essere atomico
         //l'unica lettura di questi campi è in UserFile.fill() che è synchronized
         synchronized(user){
+            //aggiungo il punteggio
+            user.total_score += score;
+
             //caso incompleto
             if(guesses_left > 0){
                 //incomplete era già stato aumentato al login
@@ -241,6 +258,10 @@ public class UserManager {
     //rendo gli user loggati
     public Set<Integer> getActive_users() {
         return active_sessions.keySet();
+    }
+
+    public void remove_active(int id){
+        active_sessions.remove(id);
     }
 
     public User get_user_from_id(int id){
@@ -310,6 +331,10 @@ public class UserManager {
 
     public StatusDescription get_player_stats(int id){
         StatusDescription out = new StatusDescription();
+        if(id == -1 || !users.containsKey(id)){
+            out.setStatus(ResponseStatus.NOT_LOGGED);
+            out.setDescription("Devi prima accedere");
+        }
 
         //come al solito non si sa mai
         if(!users.containsKey(id)){
@@ -322,5 +347,72 @@ public class UserManager {
         out.setStatus(ResponseStatus.OK);
         out.setDescription(u.get_stats());
         return out;
+    }
+
+    public StatusDescription get_overall_leaderboard(String who, int num, int me){
+        StatusDescription out = new StatusDescription();
+        if(me == -1 || !users.containsKey(me)){
+            out.setStatus(ResponseStatus.NOT_LOGGED);
+            out.setDescription("Devi prima accedere");
+            return out;
+        }
+
+        //caso in cui voglia un giocatore specifico
+        if(!who.equals("none")){
+            if(!user_id.containsKey(who) || !users.containsKey(user_id.get(who))){
+                out.setStatus(ResponseStatus.USER_NOT_FOUND);
+                out.setDescription("L'utente di nome \"" + who + "\" non esiste");
+                return out;
+            }
+
+            User user = users.get(user_id.get(who));
+            User myself = users.get(me);
+
+            int ms = myself.get_score(), us = user.get_score();
+            if(ms < us){
+                out.setStatus(ResponseStatus.OK);
+                String desc = "Giocatore: \"" + user.getUsername() + "\" ha punteggio: " + us
+                        + " maggiore del giocatore: \"" + myself.getUsername() + "\" con punteggio: "
+                        + ms + "\n";
+                out.setDescription(desc);
+            }else if(ms > us){
+                out.setStatus(ResponseStatus.OK);
+                String desc = "Giocatore: \"" + myself.getUsername() + "\" ha punteggio: " + ms
+                        + " maggiore del giocatore: \"" + user.getUsername() + "\" con punteggio: "
+                        + us + "\n";
+                out.setDescription(desc);
+            }else{
+                out.setStatus(ResponseStatus.OK);
+                String desc = "Giocatore: \"" + myself.getUsername() + "\" ha punteggio: " + ms
+                        + " pari al giocatore: \"" + user.getUsername() + "\" con punteggio: "
+                        + us + "\n";
+                out.setDescription(desc);
+            }
+
+            return out;
+        }
+
+        //caso in cui devo calcolare la classifica dei migliori num (num = 0 allora tutti)
+        List<User> leaderboard = new ArrayList<>(users.values());
+        leaderboard.sort((u1, u2) -> Integer.compare(u2.get_score(), u1.get_score()));
+
+        //se è maggiore della size li faccio comunque tutti
+        if(num > 0 && num < leaderboard.size()){
+            leaderboard = leaderboard.subList(0, num);
+        }
+
+        String desc = "";
+        int pos = 1;
+        for(User u : leaderboard){
+            desc += pos++ + ". " + u.getUsername() + " - " + u.get_score() + " punti\n";
+        }
+
+        out.setStatus(ResponseStatus.OK);
+        out.setDescription(desc);
+        return out;
+    }
+
+    public Set<UserSession> get_active_sessions(){
+        return new HashSet(active_sessions.values());
     }
 }
