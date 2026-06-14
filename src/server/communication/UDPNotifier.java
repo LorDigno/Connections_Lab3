@@ -39,7 +39,7 @@ public class UDPNotifier {
             socket.send(packet);
         }catch(IOException e){
             //non si apre il datagramSocket o è fallito l'invio
-            //tbd
+            System.err.println("Non si apre il DatagramSocket o è fallito l'invio in kick");
         }
     }
 
@@ -80,11 +80,11 @@ public class UDPNotifier {
                     socket.send(packet);
                 }catch(IOException e){
                     //ad un utente è fallito
-                    //tbd
+                    System.err.println("Fallito l'invio della notifica a " + session.username);
                 }
             }
         }catch(IOException e){
-            //non si apre il datagramSocket
+            System.err.println("Non si apre il DatagramSocket della notifica");
         }
     }
 }

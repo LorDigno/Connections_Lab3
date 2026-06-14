@@ -128,7 +128,7 @@ public class UserPuzzle {
             //rimozione delle parole indovinate da quelle rimanenti
             iter = proposal.iterator();
             while(iter.hasNext()){
-                leftover_words.remove(iter.next());
+                leftover_words.remove(iter.next().toUpperCase());
             }
         }
 

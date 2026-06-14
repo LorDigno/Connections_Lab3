@@ -70,6 +70,7 @@ public class ClientHandler implements Runnable{
                 }
             }
 
+        //un'eccezione fa terminare il thread
         }catch(IOException e){
             System.err.println("Client disconnesso o errore di I/O: " + e.getMessage());
         }catch (Exception e) {
