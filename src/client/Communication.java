@@ -1,5 +1,8 @@
 package client;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
@@ -17,6 +20,7 @@ public class Communication implements Runnable {
     public BlockingQueue<String> tcp_queue_in, tcp_queue_out;
     public Selector selector;
     private SelectionKey tcp_key;
+    private AtomicInteger puzzle_id;
 
     //volatile perché l'inserimento dinamico è balordo
     private volatile SelectionKey udp_key;
@@ -42,6 +46,7 @@ public class Communication implements Runnable {
         // 1 = è arrivata la notifica e non accetto nuovi invii
         // 2 = ho un invio iniziato che va concluso, non implica l'arrivo della notifica
         // 3 = entrambi
+        // 5 = kick
         allow_op = new AtomicInteger(0);
 
         //blockingQueue utilizzata per inviare i payload da GameClient a Communication
@@ -135,7 +140,7 @@ public class Communication implements Runnable {
 
     }
 
-    public boolean add_udp_channel(DatagramChannel udp_sock){
+    public boolean add_udp_channel(DatagramChannel udp_sock, AtomicInteger puzzle_id){
         try{
             if(udp_sock != null) {
                 //ci sono delle operazioni (register e updateCredentials) che vogliono solo il tcp
@@ -147,10 +152,12 @@ public class Communication implements Runnable {
 
                 //mi porto dietro il bytebuffer
                 udp_key.attach(ByteBuffer.allocate(4096));
+
+                this.puzzle_id = puzzle_id;
                 return true;
             }
         } catch (IOException e) {
-        System.err.println("#### Problemi d'instaurazione della connessione, operazione annullata");
+            System.err.println("#### Problemi d'instaurazione dell'udp socket, operazione annullata");
             //trovare il modo di comunicarlo al mainThread
             //tbd
         }
@@ -174,20 +181,34 @@ public class Communication implements Runnable {
 
             // Decodifica direttamente il buffer in una stringa
             String response = StandardCharsets.UTF_8.decode(buffer).toString();
-            String messaggio = ClientJsonUtils.get_description(response, "udpPuzzleTermination");
+            JsonObject json = JsonParser.parseString(response).getAsJsonObject();
+            String operation = json.get("operation").getAsString();
 
-            if(messaggio != null){
-                System.out.println(messaggio + "\n***Operazioni in sospeso annullate");
+            if(operation.equals("udpPuzzleTermination")){
+                String messaggio = ClientJsonUtils.get_string(response, "description","udpPuzzleTermination");
+                int new_id = ClientJsonUtils.get_int(response, "new_id", "udpPuzzleTermination");
 
-                interrupt.set(true);
-                game_thread.interrupt();
+                if(messaggio != null){
+                    System.out.println(messaggio + "\n***Operazioni in sospeso annullate");
 
-                if(allow_op.get() == 0){
-                    allow_op.set(1);
-                }else if(allow_op.get() == 2){
-                    allow_op.set(3);
+                    interrupt.set(true);
+                    game_thread.interrupt();
+
+                    puzzle_id.set(new_id);
+
+                    if(allow_op.get() == 0){
+                        allow_op.set(1);
+                    }else if(allow_op.get() == 2){
+                        allow_op.set(3);
+                    }
                 }
+            } else if(operation.equals("udpKick")){
+                //se non metto interrupt = true gli fa fare il reset
+                String messaggio = ClientJsonUtils.get_string(response, "description","udpPuzzleTermination");
+                System.out.println(messaggio + "\n***Operazioni in sospeso annullate");
+                game_thread.interrupt();
             }
+
 
         }catch (IOException e){
             System.err.println("Errore di IO alla ricezione di una notifica");
@@ -302,6 +323,14 @@ public class Communication implements Runnable {
         }catch (IOException e) {
             System.err.println("###\tErrore di IO durante la comunicazione al server" + e);
             System.err.println("### Operazione annullata");
+
+            //pulisci le risorse
+            key.cancel();
+            try {
+                key.channel().close();
+            } catch (IOException ex) {
+                System.err.println("###Impossibile chiudere il canale socket.");
+            }
 
             //vedi come comunicare il problema al main_thread
             game_thread.interrupt();

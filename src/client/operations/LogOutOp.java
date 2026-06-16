@@ -34,15 +34,10 @@ public class LogOutOp extends Operation { ;
     }
 
     @Override
-    public void on_fail(){
-        game.reset();
-    }
-
-    @Override
     public void digest(String response) {
         int response_status = ClientJsonUtils.get_int(response, "status", name);
 
-        switch (response_status) {
+        switch (response_status){
             case 0:
                 System.out.println("Disconnessione eseguita con successo, arrivederci " + game.username + " !!");
                 break;
@@ -53,7 +48,7 @@ public class LogOutOp extends Operation { ;
 
             default:
                 //comunico all'utente l'errore
-                String desc = ClientJsonUtils.get_description(response, name);
+                String desc = ClientJsonUtils.get_string(response, "description",name);
                 System.out.println("Errore [" + response_status +"]\n\t" + desc);
         }
 

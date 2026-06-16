@@ -10,6 +10,7 @@ import java.nio.channels.DatagramChannel;
 
 public class LogInOp extends Operation {
     //operazione che gestisce la connessione iniziale TCP col server
+    private DatagramChannel udp_sock;
 
     public LogInOp(GameClient game){
         this.game = game;
@@ -18,15 +19,18 @@ public class LogInOp extends Operation {
 
     @Override
     public boolean checks(){
-        if(game.u_status != UserStatus.NOT_LOGGED){
+        if(game.u_status == UserStatus.LOGGED_IN){
             System.out.println("---\tHai gia eseguito il login come: " + game.username);
             return false;
         }
 
-        boolean sock = connessione();
-        if(!sock){
-            return false;
+        if(game.u_status != UserStatus.CONNECTED){
+            boolean sock = connessione();
+            if(!sock){
+                return false;
+            }
         }
+
 
         return true;
     }
@@ -43,13 +47,26 @@ public class LogInOp extends Operation {
         //temporaneo, se il login non va a buon fine lo levo in digest
         game.username = username;
 
-        //il payload da inviare
-        return ClientJsonUtils.get_login_message(username, password);
-    }
 
-    @Override
-    public void on_fail(){
-        game.reset();
+        //trovo una porta udp libera
+        int udp_port = 0;
+        try{
+            DatagramChannel channel = DatagramChannel.open();
+            //se fai binding su 0 l'os ne assegna una libera
+            channel.bind(new InetSocketAddress(0));
+
+            //ricavo la porta per inviarla al server
+            InetSocketAddress localAddress = (InetSocketAddress) channel.getLocalAddress();
+            udp_port = localAddress.getPort();
+
+            //lo chiudo se il login non ha successo
+            this.udp_sock = channel;
+        } catch (IOException e) {
+            System.err.println("Errore I/O durante l'apertura o il bind del DatagramChannel: " + e.getMessage());
+        }
+
+        //il payload da inviare
+        return ClientJsonUtils.get_login_message(username, password, udp_port);
     }
 
     @Override
@@ -57,7 +74,7 @@ public class LogInOp extends Operation {
         String username = game.username;
 
         int response_status = ClientJsonUtils.get_int(response, "status", name);
-        String desc = ClientJsonUtils.get_description(response, name);
+        String desc = ClientJsonUtils.get_string(response,"description",name);
 
         if (response_status == 0) {
             //confermo la riuscita del login e cambio status
@@ -65,22 +82,12 @@ public class LogInOp extends Operation {
             System.out.println("Accesso eseguito con successo, benvenuto " + username + " !!\n" +
                     "E' ora di iniziare una partita!!!\n\n" + desc);
 
-            //inizializzazione del thread in ascolto per udp
-            int udp_port = ClientJsonUtils.get_int(response, "udpPort", "login");
-
-            DatagramChannel udp_sock = null;
-            while(udp_sock == null) {
-                try {
-                    InetSocketAddress ad = new InetSocketAddress(udp_port);
-                    udp_sock = DatagramChannel.open().bind(ad);
-                } catch (IOException e) {
-                    //retry
-                    udp_sock = null;
-                }
-            }
+            //aggiungo l'id della partita
+            int new_id = ClientJsonUtils.get_int(response, "new_id", name);
+            game.puzzle_id.set(new_id);
 
             //aggiungo il channel di ricezione delle modifiche
-            game.comm.add_udp_channel(udp_sock);
+            game.comm.add_udp_channel(udp_sock, game.puzzle_id);
 
             //fatto tutto
             game.u_status = UserStatus.LOGGED_IN;
@@ -89,6 +96,12 @@ public class LogInOp extends Operation {
 
         //resetto lo status del GameClient
         game.reset();
+
+        try{
+            udp_sock.close();
+        }catch (IOException e){
+            System.err.println("### Errore nella chiusura del canale udp");
+        }
 
         if(response_status == -1) {
             System.out.println("Errore di comunicazione durante l'accesso");

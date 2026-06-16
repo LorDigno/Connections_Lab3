@@ -44,16 +44,13 @@ public class SubmitProposalOp extends Operation{
         }
 
         //creo la jsonstring
-        return ClientJsonUtils.get_submitProposal_message(words);
+        return ClientJsonUtils.get_submitProposal_message(game.puzzle_id.get() ,words);
     }
-
-    @Override
-    public void on_fail(){}
 
     @Override
     public void digest(String response) {
         int response_status = ClientJsonUtils.get_int(response, "status", name);
-        String desc = ClientJsonUtils.get_description(response, name);
+        String desc = ClientJsonUtils.get_string(response, "description",name);
 
         switch(response_status){
             case 0:

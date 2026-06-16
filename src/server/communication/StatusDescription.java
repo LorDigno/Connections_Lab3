@@ -1,14 +1,14 @@
-package server;
+package server.communication;
 
 public class StatusDescription{
-    private int status;
+    private ResponseStatus status;
     private String description;
 
     public StatusDescription(){
         description = "";
     }
 
-    public void setStatus(int status) {
+    public void setStatus(ResponseStatus status) {
         this.status = status;
     }
 
@@ -16,7 +16,7 @@ public class StatusDescription{
         this.description = description;
     }
 
-    public int getStatus() {
+    public ResponseStatus getStatus() {
         return status;
     }
 

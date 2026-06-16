@@ -1,41 +1,72 @@
 package server.puzzles;
 
 
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class RealPuzzle {
-    public boolean is_current;
-    public int id, partecipanti, conclusori, vincitori, time_left;
-    public float media;
-    private final Map<String, String> solution;
+    public AtomicBoolean is_current;
+    public int id, participants, finished, winners, time_left, total_score;;
+    private final Map<String, String> groups;
+    public Map<String, List<String>> solution;
 
-    public RealPuzzle(int id, Map<String,String> groups, int time_left){
+    public RealPuzzle(int id, Map<String,String> groups){
         this.id = id;
-        this.time_left = time_left;
-        solution = groups;
-        partecipanti = 0;
-        conclusori = 0;
-        vincitori = 0;
-        media = 0;
-        is_current = true;
+        this.groups = groups;
+
+        //inverto solutions da parola -> gruppo a gruppo -> parola
+        this.solution = new HashMap<String, List<String>>();
+        Iterator<String> keys = groups.keySet().iterator();
+        while(keys.hasNext()){
+            String word = keys.next();
+            String name = groups.get(word);
+
+            if(!solution.containsKey(name)){
+                solution.put(name, new ArrayList<String>());
+            }
+
+            solution.get(name).add(word);
+        }
+
+        participants = 0;
+        finished = 0;
+        winners = 0;
+        total_score = 0;
+        is_current = new AtomicBoolean(true);
     }
 
-    public Map<String, String> getSolution() {
-        return solution;
+    public RealPuzzle(RealPuzzleFile rpf){
+        this.participants = rpf.partecipants;
+        this.id = rpf.id;
+        this.winners = rpf.winners;
+        this.finished = rpf.finished;
+        this.total_score = rpf.total_score;
+
+        groups = null;
+        is_current = new AtomicBoolean(false);
     }
 
-    @Override
-    public String toString(){
+    public Map<String, String> getGroups() {
+        return groups;
+    }
+
+    public synchronized void add_participant(){
+        participants++;
+    }
+
+    public synchronized String get_stats(){
         String puzzle = "";
-        if(is_current){
-            puzzle += "Tempo Rimasto: " + time_left + "ms\n";
+        if(!is_current.get()){
+            if(participants == 0){
+                puzzle += "Punteggio Medio: " + 0 + "\n";
+            }else{
+                puzzle += "Punteggio Medio: " + (float)total_score/ participants + "\n";
+            }
+
         }
-        else{
-            puzzle += "Punteggio Medio: " + media + "\n";
-        }
-        puzzle += "Partecipanti: " + partecipanti + "\n";
-        puzzle += "Conclusori: " + conclusori + "\n";
-        puzzle += "Vincitori: " + vincitori + "\n";
+        puzzle += "Partecipanti: " + participants + "\n";
+        puzzle += "Conclusori: " + finished + "\n";
+        puzzle += "Vincitori: " + winners + "\n";
         return puzzle;
     }
 }

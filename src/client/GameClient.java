@@ -7,6 +7,7 @@ import java.nio.channels.SocketChannel;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class GameClient {
@@ -16,6 +17,7 @@ public class GameClient {
     public UserStatus u_status;
     public List<String> banlist;
     public AtomicBoolean reject_input;
+    public AtomicInteger puzzle_id;
     private BlockingQueue<String> input_queue;
     public Thread comm_thread;
     public Communication comm;
@@ -28,7 +30,7 @@ public class GameClient {
         this.banlist = banlist;
         this.input_queue = input_queue;
         this.reject_input = reject_input;
-
+        this.puzzle_id = new AtomicInteger(-1);
     }
 
     //main lifecycle of the GameClient
@@ -122,6 +124,7 @@ public class GameClient {
         username = null;
         comm = null;
         comm_thread = null;
+        puzzle_id.set(-1);
     }
 
     private void quit(){

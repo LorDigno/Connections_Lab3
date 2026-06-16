@@ -9,7 +9,6 @@ import java.util.Scanner;
 
 public class RegisterOp extends Operation {
     private String user;
-    private boolean clear = false;
     private List<String> banned_users;
 
     public RegisterOp(GameClient game, List<String> banlist){
@@ -22,8 +21,6 @@ public class RegisterOp extends Operation {
     public boolean checks(){
         //se non sono loggato non ho una connessione tcp aperta
         if(game.u_status == UserStatus.NOT_LOGGED || game.comm_thread == null){
-            clear = true;
-
             //creo un socketChannel temporaneo da richiudere in digest e on_fail
             boolean sock = connessione();
             if(!sock){
@@ -58,13 +55,6 @@ public class RegisterOp extends Operation {
     }
 
     @Override
-    public void on_fail(){
-        if(clear){
-            game.reset();
-        }
-    }
-
-    @Override
     public void digest(String response) {
         int response_status = ClientJsonUtils.get_int(response, "status", name);
         switch (response_status) {
@@ -75,16 +65,14 @@ public class RegisterOp extends Operation {
 
             case -1:
                 System.out.println("Errore di comunicazione durante la disconnessione");
+                game.reset();
                 break;
 
             default:
                 //comunico all'utente l'errore
-                String desc = ClientJsonUtils.get_description(response, name);
+                String desc = ClientJsonUtils.get_string(response, "description",name);
                 System.out.println("Errore [" + response_status +"]\n\t" + desc);
-        }
-
-        if(clear) {
-            game.reset();
+                game.reset();
         }
     }
 }
