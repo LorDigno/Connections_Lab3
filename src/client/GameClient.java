@@ -53,6 +53,13 @@ public class GameClient {
             }catch(InterruptedException e){
                 input_queue.clear();
                 reject_input.set(false);
+                if(comm.allow_op.get() == 0){
+                    reset();
+                }
+                else{
+                    comm.allow_op.set(0);
+                }
+
             }
         }
     }
@@ -125,6 +132,8 @@ public class GameClient {
         comm = null;
         comm_thread = null;
         puzzle_id.set(-1);
+
+        System.out.println("---Stato del client azzerato");
     }
 
     private void quit(){

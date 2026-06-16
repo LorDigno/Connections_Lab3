@@ -54,7 +54,7 @@ public abstract class Operation{
                 response_msg = comm_thread.tcp_queue_out.take();
             }
             else{
-                throw new InterruptedException();
+                throw new InterruptedException("Interruzione durante la comunicazione");
             }
         } catch(InterruptedException e){
             //è arrivata la notifica asincrona oppure il server ha chiuso il socket tcp
@@ -74,7 +74,8 @@ public abstract class Operation{
             }
             else{
                 //qua c'è stato l'errore nel server, va chiuso tutto
-                game.reset();
+                System.err.println("Il server si è chiuso o ha riscontrato un errore" + e.getMessage());
+                return null;
             }
         }
 

@@ -196,10 +196,8 @@ public class Communication implements Runnable {
 
                     puzzle_id.set(new_id);
 
-                    if(allow_op.get() == 0){
-                        allow_op.set(1);
-                    }else if(allow_op.get() == 2){
-                        allow_op.set(3);
+                    if(!allow_op.compareAndSet(0, 1)){
+                        allow_op.compareAndSet(2, 3);
                     }
                 }
             } else if(operation.equals("udpKick")){

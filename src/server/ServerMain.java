@@ -13,7 +13,7 @@ import java.util.Properties;
 public class ServerMain {
     public static void main(String args[]){
         //inizializza l'oggetto GameServer leggendo la configurazione
-        File config_file = new File("src/server/config.properties");
+        File config_file = new File("src/server/server.properties");
         try{
             FileReader reader = new FileReader(config_file);
             //parsing con properties

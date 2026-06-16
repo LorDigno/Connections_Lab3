@@ -123,6 +123,7 @@ public class PersistenceManager {
 
         // scrittura sicura con file temporaneo
         File tmp = new File("data/users/" + id + ".tmp");
+        System.out.println("Scrittura file " + tmp.getPath());
         try (FileWriter writer = new FileWriter(tmp)) {
             gson.toJson(uf, writer);
         } catch (IOException e) {
@@ -147,6 +148,7 @@ public class PersistenceManager {
 
         // scrittura sicura con file temporaneo
         File tmp = new File("data/puzzles/" + puzzle.id + ".tmp");
+        System.out.println("Scrittura file " + tmp.getPath());
         try (FileWriter writer = new FileWriter(tmp)) {
             gson.toJson(pf, writer);
         } catch (IOException e) {
