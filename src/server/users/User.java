@@ -2,10 +2,12 @@ package server.users;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+///Rappresenta un utente, contiene tutti i suoi dati
+///Molti metodi sono synchronized perché non si vuole l'atomicità sul singolo campo ma sull'intero stato dell'utente
 public class User {
     //dati dell'account
     protected static AtomicInteger next_id = new AtomicInteger(0);
-    private int id;
+    private final int id;
     private String username, password;
 
     //statistiche dell'utente
@@ -63,6 +65,7 @@ public class User {
         return username;
     }
 
+    ///Cambia username e password se gli input non sono null
     public synchronized void update_credentials(String new_u, String new_p){
         if(new_u != null){
             username = new_u;
@@ -72,6 +75,7 @@ public class User {
         }
     }
 
+    ///Non sincronizzato perché id è readonly e final
     public int getId(){
         return this.id;
     }
@@ -80,33 +84,55 @@ public class User {
         return this.total_score;
     }
 
-    //al login si aggiunge una partita giocata e una incompleta
+    ///Al login si aggiunge una partita giocata e una incompleta
     public synchronized void add_game(){
         played += 1;
         incomplete += 1;
     }
 
-    public synchronized String get_stats(){
-        String stats = "";
-        stats += "Puzzle giocati: " + played + "\n";
-        stats += "Puzzle perfetti (vinti con 0 errori): " + perfect + "\n";
-        stats += "Puzzle con 1 errore: " + one_mistake + "\n";
-        stats += "Puzzle con 2 errori: " + two_mistakes + "\n";
-        stats += "Puzzle con 3 errori: " + three_mistakes + "\n";
-        stats += "Puzzle con 4 errori: " + four_mistakes + "\n";
-        stats += "Puzzle non completati: " + incomplete + "\n";
+    ///Rende il payload per requestPlayerStats
+    public String get_stats(){
+        //faccio lo snapshot dello stato per non bloccarmi mentre creo la stringa
+        int p, per, m1, m2, m3, m4, i, w, l, cs, ms;
+        synchronized(this){
+            p = played;
+            per = perfect;
+            m1 = one_mistake;
+            m2 = two_mistakes;
+            m3 = three_mistakes;
+            m4 = four_mistakes;
+            i = incomplete;
+            w = wins;
+            l = failed;
+            cs = curr_streak;
+            ms = max_streak;
+        }
 
-        if(played == 0){
+
+        String stats = "";
+        stats += "Puzzle giocati: " + p + "\n";
+        stats += "Puzzle perfetti (vinti con 0 errori): " + per + "\n";
+        stats += "Puzzle con 1 errore: " + m1 + "\n";
+        stats += "Puzzle con 2 errori: " + m2 + "\n";
+        stats += "Puzzle con 3 errori: " + m3 + "\n";
+        stats += "Puzzle con 4 errori: " + m4 + "\n";
+        stats += "Puzzle non completati: " + i + "\n";
+
+        if(p == 0){
             stats += "WinRate: " + 0 + "%\n";
             stats += "LossRate: " + 0 + "%\n";
         }else{
-            stats += "WinRate: " + (float) wins/played + "%\n";
-            stats += "LossRate: " + (float) failed/played + "%\n";
+            stats += "WinRate: " + (float) w/p + "%\n";
+            stats += "LossRate: " + (float) l/p + "%\n";
         }
 
-        stats += "Filone attuale: " + curr_streak + " partite vinte di fila\n";
-        stats += "Filone migliore: " + max_streak + " partite vinte di fila\n";
+        stats += "Filone attuale: " + cs + " partite vinte di fila\n";
+        stats += "Filone migliore: " + ms + " partite vinte di fila\n";
 
         return stats;
+    }
+
+    public String toString(){
+        return username + ";" + id + ";" + played + ";" + get_score();
     }
 }

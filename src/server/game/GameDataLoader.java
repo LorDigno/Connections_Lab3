@@ -1,6 +1,7 @@
 package server.game;
 
 import com.google.gson.stream.JsonReader;
+import server.FatalServerException;
 import server.puzzles.RealPuzzle;
 
 import java.io.FileNotFoundException;
@@ -15,22 +16,22 @@ public class GameDataLoader {
     // streaming reader tenuto aperto tra una chiamata e l'altra
     private JsonReader reader;
 
-    public GameDataLoader(){
+    public GameDataLoader() throws FatalServerException{
         try{
-            reader = new JsonReader(new FileReader("data/Connections_Data.json"));
+            reader = new JsonReader(new FileReader("Connections_Data.json"));
             reader.beginArray();
-        } catch (FileNotFoundException e) {
-            //tbd
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            //tbd
-            throw new RuntimeException(e);
+        } catch(FileNotFoundException e) {
+            close();
+            throw new FatalServerException(e.getMessage());
+        } catch(IOException e) {
+            close();
+            throw new FatalServerException(e.getMessage());
         }
     }
 
     //carica e restituisce la prossima partita dal file
     //restituisce null se il file è esaurito
-    public RealPuzzle load_next(){
+    public RealPuzzle load_next() throws FatalServerException{
         try{
             //se c'è un prossimo elemento nell'array lo leggo
             if (reader.hasNext()) {
@@ -42,9 +43,9 @@ public class GameDataLoader {
             close();
             return null;
 
-        } catch (Exception e) {
-            //tbd
-            throw new RuntimeException(e);
+        }catch(IOException e) {
+            close();
+            throw new FatalServerException(e.getMessage());
         }
     }
 
@@ -56,7 +57,7 @@ public class GameDataLoader {
                 reader = null;
             }
         }catch(IOException e){
-            //tbd
+            System.err.println("Errore di chiusura dello stream dei dati sulle partite");
         }
     }
 

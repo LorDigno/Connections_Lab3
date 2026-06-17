@@ -1,6 +1,7 @@
 package server.game;
 
 import com.google.gson.Gson;
+import server.FatalServerException;
 import server.PersistenceManager;
 import server.communication.ClientHandler;
 import server.communication.ResponseStatus;
@@ -23,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-//gestisce effettivamente il puzzle
+///Gestisce tutti gli UserPuzzle e la threadpool dei client
 public class GameManager{
     private volatile RealPuzzle current;
     private ConcurrentHashMap<Integer, UserPuzzle> participants;
@@ -32,20 +33,27 @@ public class GameManager{
     private GameServer server;
     private UserManager users;
     private ExecutorService pool;
+
+    ///dove tengo i socket accettati per poi terminare i clienthandler
+    private ConcurrentLinkedQueue<Socket> socks;
     private UDPNotifier udp_notifier;
     private volatile long start_time;
 
-    //monitor per endgame
+    ///monitor per endgame
     private final Object game_lock;
+    ///blocca le richieste mentre sta cambiando la partita
     private volatile boolean changing_game = false;
     private volatile int active_requests = 0;
 
     private PersistenceManager persistance;
 
-    public GameManager(GameServer server, UserManager users, UDPNotifier udp_notifier, PersistenceManager pers){
+    public GameManager(GameServer server, UserManager users, UDPNotifier udp_notifier,
+                       PersistenceManager pers) throws FatalServerException{
         this.server = server;
         this.users = users;
+
         loader = new GameDataLoader();
+
         this.udp_notifier = udp_notifier;
         this.persistance = pers;
 
@@ -57,39 +65,50 @@ public class GameManager{
         participants = new ConcurrentHashMap<>();
     }
 
-    //supponiamo che sia stato tutto ripulito nel end_game precedente
-    public void launch(){
-        current = loader.load_next();
-        start_time = System.currentTimeMillis();
-        pool = Executors.newCachedThreadPool();
+    ///Avvia la prima partita e il threadpool dei client
+    public void launch() throws FatalServerException{
+        try{
+            current = loader.load_next();
+            start_time = System.currentTimeMillis();
+            pool = Executors.newCachedThreadPool();
 
-        timer = Executors.newSingleThreadScheduledExecutor();
-        timer.schedule(this::end_game, server.game_time, TimeUnit.MILLISECONDS);
+            //avvio il meccanismo di chiusura automatica delle partite
+            timer = Executors.newSingleThreadScheduledExecutor();
+            timer.schedule(this::end_game, server.game_time, TimeUnit.MILLISECONDS);
+        }catch(FatalServerException e){
+            System.err.println("Annullato l'avvio del game manager");
+            close_all();
+            throw new FatalServerException(e.getMessage());
+        }
+
     }
 
-    //aggiunge una connessione accettata al threadpool
+    ///Aggiunge una connessione accettata al threadpool dei client
     public void submit_client(Socket tcp_sock){
-        //tbd, devo ancora capire come accettare le connessioni
+        //pulisco la coda dai socket già chiusi
+        socks.removeIf(Socket::isClosed);
+
+        socks.add(tcp_sock);
         pool.submit(new ClientHandler(tcp_sock, this, users));
     }
 
-    //attiva il flush di tutto, cambia gli stati e invia la notifica udp
+    ///Attiva il flush di tutto, cambia gli stati e invia la notifica udp
+    ///Schedulato ogni gamet_time in un thread a parte
     private void end_game(){
         //le richieste che arrivano ora sono scadute
         synchronized (game_lock){
             changing_game = true;
 
             //attesa passiva sulla lock come condition variable
-            while (active_requests > 0) {
+            while(active_requests > 0) {
                 try {
                     game_lock.wait();
                 } catch (InterruptedException e) {
-                    //tbd
-                    Thread.currentThread().interrupt();
+                    //spurious wakeup
                 }
             }
         }
-
+        
         current.is_current.set(false);
 
         //salvo le implicazioni delle partite finite
@@ -102,14 +121,22 @@ public class GameManager{
 
         String leaderboard = get_current_leaderboard(20);
 
+        //salvo
+        persistance.flush_all();
+
         //creo la partita nuova
         RealPuzzle old_game = current;
-        current = loader.load_next();
-        start_time = System.currentTimeMillis();
-
-        //notifico gli utenti attivi della fine della partita
-        udp_notifier.notify_active(old_game, current, leaderboard, users.get_active_sessions());
-        timer.schedule(this::end_game, server.game_time, TimeUnit.MILLISECONDS);
+        try{
+            current = loader.load_next();
+            if(current == null){
+                System.err.println("--- Finite le partite note");
+                throw new FatalServerException("done");
+            }
+        }catch (FatalServerException e){
+            close_all();
+            server.stop_loop();
+            return;
+        }
 
         //aggiorno participants agli user attivi
         participants.clear();
@@ -119,21 +146,24 @@ public class GameManager{
             int u = iter.next();
             //se siamo qua u esiste per forza.
             participants.put(u, new UserPuzzle(users.get_user_from_id(u), current));
+            persistance.mark_user_puzzle(participants.get(u));
+            users.get_user_from_id(u).add_game();
         }
+
+        //per calcolare il tempo rimanente
+        start_time = System.currentTimeMillis();
+
+        //notifico gli utenti attivi della fine della partita
+        udp_notifier.notify_active(old_game, current, leaderboard, users.get_active_sessions());
+        timer.schedule(this::end_game, server.game_time, TimeUnit.MILLISECONDS);
 
         //le richieste ritornano valide
         synchronized(game_lock) {
             changing_game = false;
         }
-        persistance.flush_all();
-
-        //adesso che sono stati flushati quelli vecchi posso mettere in cache quelli nuovi
-        for(Integer u: participants.keySet()){
-            persistance.mark_user_puzzle(participants.get(u));
-        }
     }
 
-    //per il conteggio delle operazioni a mezzo che bloccano endgame
+    ///Per il conteggio delle operazioni a mezzo che bloccano endgame
     public boolean try_start_action(){
         synchronized (game_lock){
             //accetti solo se non sta cambiando la partita
@@ -156,6 +186,7 @@ public class GameManager{
         }
     }
 
+    ///Crea lo UserPuzzle per un utente appena loggato per la prima volta in current
     public void log_participant(int user_id){
         participants.computeIfAbsent(user_id,
                 id -> {
@@ -226,6 +257,7 @@ public class GameManager{
         return out;
     }
 
+    ///Salva lo stato della partita corrente sulle user e fa il mark di user e current
     private void game_over(int user_id, UserPuzzle up){
         //cambio i dati dell'utente
         users.puzzle_done(user_id, up.mistakes, up.guesses_left, up.right_ones, up.score);
@@ -246,7 +278,7 @@ public class GameManager{
         persistance.mark_game(current);
     }
 
-    //genera la classifica attuale della partita in corso (i primi dim)
+    ///Genera la classifica attuale della partita in corso (i primi dim)
     public String get_current_leaderboard(int dim) {
         List<UserPuzzle> leaderboard = new ArrayList<>();
         for (UserPuzzle puzzle : participants.values()) {
@@ -343,6 +375,7 @@ public class GameManager{
         return out;
     }
 
+    ///Prende dall'archivio una partita vecchia
     private RealPuzzleFile get_finished_game(int id){
         File file = new File("data/puzzles/" + id + ".json");
         if(!file.exists()) return null;
@@ -358,6 +391,45 @@ public class GameManager{
     private int get_time_left(){
         //in alcuni casi limite può venire negativo
         return (int) Math.max(0,server.game_time - (System.currentTimeMillis() -  start_time));
+    }
+
+    ///libera tutte le risorse del game manager
+    public void close_all(){
+        if(timer != null){
+            timer.shutdown();
+            try {
+                if (!timer.awaitTermination(5, TimeUnit.SECONDS)) {
+                    timer.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                timer.shutdownNow();
+            }
+        }
+
+        if(pool != null){
+            pool.shutdown();
+            try {
+                if (!pool.awaitTermination(5, TimeUnit.SECONDS)) {
+                    //quasi sicuro che si arrivi qua dato che sono in un while true
+                    //pulisco la coda dai socket già chiusi
+                    socks.removeIf(Socket::isClosed);
+                    for(Socket sock: socks){
+                        try{
+                            sock.close();
+                        }catch(IOException ex){
+                            System.err.println("Errore nella chiusura di una socket");
+                        }
+                    }
+                    pool.shutdownNow();
+                }
+            } catch (InterruptedException e){
+                pool.shutdownNow();
+            }
+        }
+
+        if(loader != null){
+            loader.close();
+        }
     }
 
 }

@@ -24,11 +24,14 @@ public class ServerMain {
             int timeout = Integer.parseInt(props.getProperty("timeout"));
             List<String> banlist = List.of(props.getProperty("banlist").split(";"));
             int game_time = Integer.parseInt(props.getProperty("game_time")); //in ms
+            int flush_delay = Integer.parseInt(props.getProperty("flush_delay")); //in ms
+            int flush_time = Integer.parseInt(props.getProperty("flush_time")); //in ms
 
             reader.close();
             //fine parsing
 
-            GameServer server = new GameServer(tcp_port, timeout, banlist, game_time);
+            GameServer server = new GameServer(tcp_port, timeout, banlist, game_time
+                                ,flush_delay, flush_time);
             server.launch();
 
         } catch (FileNotFoundException ex) {

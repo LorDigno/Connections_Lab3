@@ -13,32 +13,53 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
+///Si occupa di salvare i cambiamenti di User, UserPuzzle e RealGame in memoria.
+///Flush_all viene chiamato periodicamente.
 public class PersistenceManager {
     //uso una AtomicReference per le "cache" che devono essere swappate atomicamente
     private AtomicReference<ConcurrentHashMap<Integer, User>> user_cache;
     private AtomicReference<ConcurrentHashMap<Integer, UserPuzzle>> user_puzzle_cache;
     private AtomicReference<Set<RealPuzzle>> game_cache;
 
-    public PersistenceManager() {
+    ///Crea le directory data/, data/users e data/puzzles se non ci sono
+    public PersistenceManager() throws FatalServerException{
+        //se non esistono le cartelle necessarie le crea
+        try {
+            Files.createDirectories(Paths.get("data/users"));
+            Files.createDirectories(Paths.get("data/puzzles"));
+            System.out.println("Directory di persistenza verificate/create con successo.");
+        } catch (IOException e) {
+            throw new FatalServerException("Impossibile creare le directory di salvataggio.");
+        }
+
         user_cache = new AtomicReference<>(new ConcurrentHashMap<Integer, User>());
         user_puzzle_cache = new AtomicReference<>(new ConcurrentHashMap<Integer, UserPuzzle>());
         game_cache = new AtomicReference<>(ConcurrentHashMap.newKeySet());
     }
 
     //mark dirty chiamati dagli altri manager
+    ///Segna come dirty uno User
     public void mark_user(User u){
+        System.out.println("---Marked user " + u);
         user_cache.get().putIfAbsent(u.getId(), u);
     }
+    ///Segna come dirty uno UserPuzzle
     public void mark_user_puzzle(UserPuzzle up){
+        System.out.println("---Marked user puzzle " + up);
         user_puzzle_cache.get().putIfAbsent(up.user.getId(), up);
     }
+    ///Segna come dirty un RealPuzzle
     public void mark_game(RealPuzzle rp){
+        System.out.println("---Marked puzzle " + rp);
         game_cache.get().add(rp);
     }
 
@@ -80,7 +101,8 @@ public class PersistenceManager {
         }
     }
 
-    //chiamato in automatico dallo scheduler
+    ///Chiamato in automatico dallo scheduler per la persistenza periodica.
+    ///Fa lo swap delle mappe di cache atomicamente con atomic reference e poi fa il flush dai dati.
     public void flush_all(){
         //il newKeySet della ConcurrentHashMap è thread safe
         //cambio in modo atomico le cache col puntatore così che gli altri thread le possano ririempire
@@ -93,6 +115,7 @@ public class PersistenceManager {
         flush_puzzles(game);
     }
 
+    ///Fa le modifiche necessarie sul file utente
     private void write_user_file(int id, User user, UserPuzzle puzzle) {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         File file = new File("data/users/" + id + ".json");
@@ -103,7 +126,7 @@ public class PersistenceManager {
             try (FileReader reader = new FileReader(file)) {
                 uf = gson.fromJson(reader, UserFile.class);
             } catch (IOException e) {
-                System.err.println("Errore lettura file utente");
+                System.err.println("Errore lettura file utente, id: " + id);
                 //tbd
                 return;
             }
@@ -122,21 +145,31 @@ public class PersistenceManager {
         }
 
         // scrittura sicura con file temporaneo
-        File tmp = new File("data/users/" + id + ".tmp");
-        System.out.println("Scrittura file " + tmp.getPath());
+        File tmp = new File("data/users/" + id + ".tmp" + Thread.currentThread().getName());
+        System.out.println("Scrittura file " + tmp.getPath() + ", " + uf);
         try (FileWriter writer = new FileWriter(tmp)) {
             gson.toJson(uf, writer);
         } catch (IOException e) {
-            System.err.println("Errore scrittura file utente");
+            System.err.println("Errore scrittura file utente, id: " + id);
             return;
         }
 
         //è atomica su Linux e MacOS
         //uno che leggeva la versione vecchia, continua a farlo (FD con info vecchie)
         //uno che apre subito dopo ha la versione aggiornata
-        tmp.renameTo(file);
+        //tmp.renameTo(file);
+
+        //per test atomico su windows
+        try{
+            Files.move(tmp.toPath(), file.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+        }catch (IOException e){
+            System.err.println("Errore di copi del file temporaneo");
+        }
     }
 
+    ///Fa le modifiche necessarie sul file puzzle
     private void write_puzzle_file(RealPuzzle puzzle){
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         File file = new File("data/puzzles/" + puzzle.id + ".json");
@@ -147,8 +180,8 @@ public class PersistenceManager {
         pf.fill(puzzle);
 
         // scrittura sicura con file temporaneo
-        File tmp = new File("data/puzzles/" + puzzle.id + ".tmp");
-        System.out.println("Scrittura file " + tmp.getPath());
+        File tmp = new File("data/puzzles/" + puzzle.id + ".tmp" + Thread.currentThread().getName());
+        System.out.println("Scrittura file " + tmp.getPath() + "; " + pf);
         try (FileWriter writer = new FileWriter(tmp)) {
             gson.toJson(pf, writer);
         } catch (IOException e) {
@@ -156,6 +189,15 @@ public class PersistenceManager {
             //tbd
             return;
         }
-        tmp.renameTo(file);
+
+        //tmp.renameTo(file);
+        //per test atomico su windows
+        try{
+            Files.move(tmp.toPath(), file.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+        }catch (IOException e){
+            System.err.println("Errore di copi del file temporaneo");
+        }
     }
 }

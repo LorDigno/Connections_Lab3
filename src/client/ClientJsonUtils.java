@@ -7,10 +7,11 @@ import com.google.gson.JsonParser;
 import java.util.Iterator;
 import java.util.List;
 
-//classe che  offre metodi statici per creare i json che il client deve inviare al server
+///Classe che offre metodi statici per creare i json che il client deve inviare al server
 public class ClientJsonUtils {
 
-    //info sulla risposta come descrizioni d'errore
+    ///Estrae da response la proprietà property(String), se non c'è o il campo operations è diverso da
+    /// quello dato rende null;
     public static String get_string(String response, String property,String op_name){
         JsonObject json = JsonParser.parseString(response).getAsJsonObject();
         if(!json.get("operation").getAsString().equals(op_name)){
@@ -24,6 +25,8 @@ public class ClientJsonUtils {
         return null;
     }
 
+    ///Estrae da response la proprietà property(int), se non c'è o il campo operations è diverso da
+    /// quello dato rende null;
     public static int get_int(String response, String property, String op_name){
         JsonObject json = JsonParser.parseString(response).getAsJsonObject();
         if(!json.get("operation").getAsString().equals(op_name)){
@@ -33,7 +36,7 @@ public class ClientJsonUtils {
         return json.get(property).getAsInt();
     }
 
-    //rende il messaggio di login date le credenziali
+    ///Rende il messaggio di login date le credenziali e la porta udp
     public static String get_login_message(String user, String password, int port){
         JsonObject json = new JsonObject();
         json.addProperty("operation", "login");
@@ -43,14 +46,14 @@ public class ClientJsonUtils {
         return json.toString();
     }
 
-    //rende il messaggio di logout
+    ///Rende il messaggio di logout
     public static String get_logout_message(){
         JsonObject json = new JsonObject();
         json.addProperty("operation", "logout");
         return json.toString();
     }
 
-    //rende il messaggio di register
+    ///Rende il messaggio di register
     public static String get_register_message(String user, String password){
         JsonObject json = new JsonObject();
         json.addProperty("operation", "register");
@@ -59,7 +62,7 @@ public class ClientJsonUtils {
         return json.toString();
     }
 
-    //rende il messaggio di updateCredentials
+    ///Rende il messaggio di updateCredentials, i campi new vengono aggiunti solo se diversi da ""
     public static String get_updateCredentials_message(String user, String password,
                                                         String new_user, String new_password){
         JsonObject json = new JsonObject();
@@ -78,7 +81,7 @@ public class ClientJsonUtils {
         return json.toString();
     }
 
-    //rende il messaggio di submitProposal
+    ///Rende il messaggio di submitProposal
     public static String get_submitProposal_message(int id, List<String> words){
         JsonObject json = new JsonObject();
         json.addProperty("operation", "submitProposal");
@@ -95,7 +98,7 @@ public class ClientJsonUtils {
         return json.toString();
     }
 
-    //rende il messaggio di requestGameInfo
+    ///Rende il messaggio di requestGameInfo
     public static String get_requestGameInfo_message(int id){
         JsonObject json = new JsonObject();
         json.addProperty("operation", "requestGameInfo");
@@ -103,7 +106,7 @@ public class ClientJsonUtils {
         return json.toString();
     }
 
-    //rende il messaggio di requestGameInfo
+    ///Rende il messaggio di requestGameInfo
     public static String get_requestGameStats_message(int id){
         JsonObject json = new JsonObject();
         json.addProperty("operation", "requestGameStats");
@@ -111,6 +114,7 @@ public class ClientJsonUtils {
         return json.toString();
     }
 
+    ///Rende il messaggio di requestLeaderboard
     public static String get_requestLeaderboard_message(String player_name, int num){
         JsonObject json = new JsonObject();
         json.addProperty("operation", "requestLeaderboard");
@@ -119,6 +123,7 @@ public class ClientJsonUtils {
         return json.toString();
     }
 
+    ///Rende il messaggio di requestPlayerStats
     public static String get_requestPlayerStats_message(){
         JsonObject json = new JsonObject();
         json.addProperty("operation", "requestPlayerStats");

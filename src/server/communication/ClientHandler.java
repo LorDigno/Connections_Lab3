@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
+///Task runnable che gestisce la comunicazione col client e chiama i metodi delle altre componenti
 public class ClientHandler implements Runnable{
     private Socket sock;
     private boolean done;
@@ -73,7 +74,7 @@ public class ClientHandler implements Runnable{
         //un'eccezione fa terminare il thread
         }catch(IOException e){
             System.err.println("Client disconnesso o errore di I/O: " + e.getMessage());
-        }catch (Exception e) {
+        }catch(Exception e) {
             System.err.println("ERRORE CRITICO NEL SERVER DURANTE L'ELABORAZIONE:");
             e.printStackTrace();
         }
@@ -81,6 +82,8 @@ public class ClientHandler implements Runnable{
         clear();
     }
 
+    ///Gestisce la sincronizazzione con endgame via start_action ed end_action.
+    ///Usa uno switch della morte per capire quale metodo chiamare.
     private String handle_request(String request){
         String payload = null;
 
@@ -147,7 +150,7 @@ public class ClientHandler implements Runnable{
         return payload;
     }
 
-    //crea la struttura del json della risposta dati i payload
+    ///Crea la struttura del json della risposta dati i payload
     private String build_response(String op_name, StatusDescription sd){
         JsonObject json = new JsonObject();
         json.addProperty("operation", op_name);
@@ -252,7 +255,7 @@ public class ClientHandler implements Runnable{
         return build_response("requestLeaderboard", sd);
     }
 
-    //se c'è roba da liberare lo faccio qua
+    ///Se c'è roba da liberare lo faccio qua
     private void clear(){
         if(user_id != -1){
             user_m.remove_active(user_id);

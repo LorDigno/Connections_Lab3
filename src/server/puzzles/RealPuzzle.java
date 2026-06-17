@@ -69,4 +69,8 @@ public class RealPuzzle {
         puzzle += "Vincitori: " + winners + "\n";
         return puzzle;
     }
+
+    public String toString(){
+        return id + ";" + participants + ";" + total_score;
+    }
 }

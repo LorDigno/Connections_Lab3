@@ -164,4 +164,8 @@ public class UserPuzzle {
         return puzzle;
     }
 
+    public String toString(){
+        return "partita: " +real.id + ";" + user.toString() + ";" + good_proposals + ";" + mistakes + ";" + score;
+    }
+
 }

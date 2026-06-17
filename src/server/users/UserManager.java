@@ -15,6 +15,7 @@ import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+///Gestisce le sessioni utente e tutti i dati sugli utenti stessi
 public class UserManager {
     //utenti recuperati dal disco e sessioni attive
     private final ConcurrentHashMap<Integer, User> users;
@@ -35,6 +36,7 @@ public class UserManager {
         load_from_disk();
     }
 
+    ///Registra una nuova sessione utente
     public StatusDescription session_login(String username, String password,
                                            InetAddress address, int udp_port) {
         StatusDescription out = new StatusDescription();
@@ -90,7 +92,6 @@ public class UserManager {
         return out;
     }
 
-    //ritorna false se username già esistente
     public StatusDescription register(String username, String password){
         StatusDescription out = new StatusDescription();
 
@@ -193,6 +194,7 @@ public class UserManager {
         return out;
     }
 
+    ///Una volta completato un puzzle (o per timeout) aggiorna i dati dell'utente con quelli dello UserPuzzle
     public void puzzle_done(int id, int mistakes, int guesses_left, int right_ones, int score){
         User user = users.get(id);
 
@@ -255,24 +257,27 @@ public class UserManager {
         persistence.mark_user(user);
     }
 
-    //rendo gli user loggati
+    ///Rende tutti gli user loggati
     public Set<Integer> getActive_users() {
         return active_sessions.keySet();
     }
 
+    ///Rimuove una sessione utente
     public void remove_active(int id){
         active_sessions.remove(id);
     }
 
+    ///Rende l'oggetto user dal suo id
     public User get_user_from_id(int id){
         return users.get(id);
     }
 
+    ///Rende l'id di uno user dal suo username
     public int get_id_from_username(String username){
         return user_id.get(username);
     }
 
-    //legge gli user già noti dal disco
+    ///Legge gli user già noti dal disco, chiamato solo all'avvio, utile in caso di riavvio
     private void load_from_disk(){
         File dir = new File("data/users");
 
@@ -297,6 +302,7 @@ public class UserManager {
         User.next_id.set(max + 1);
     }
 
+    ///Fai il parsing di un file in UserFile e poi in User con Gson
     private User get_user_from_file(File file){
         Gson gson = new Gson();
         try (FileReader reader = new FileReader(file)){
@@ -308,11 +314,11 @@ public class UserManager {
 
         } catch(IOException e){
             System.err.println("Errore lettura file utente: " + file.getName());
-            //tbd
             return null;
         }
     }
 
+    ///Fai il parsing di un file e recupera lo UserPuzzleData con Gson
     public UserPuzzleData get_user_puzzle(int user_id, int puzzle_id){
         File file = new File("data/users/" + user_id + ".json");
         if(!file.exists()) return null;
@@ -334,6 +340,7 @@ public class UserManager {
         if(id == -1 || !users.containsKey(id)){
             out.setStatus(ResponseStatus.NOT_LOGGED);
             out.setDescription("Devi prima accedere");
+            return out;
         }
 
         //come al solito non si sa mai
@@ -349,6 +356,7 @@ public class UserManager {
         return out;
     }
 
+    ///Calcola la classifica dei primi num utenti oppure relativa con who
     public StatusDescription get_overall_leaderboard(String who, int num, int me){
         StatusDescription out = new StatusDescription();
         if(me == -1 || !users.containsKey(me)){
@@ -413,6 +421,6 @@ public class UserManager {
     }
 
     public Set<UserSession> get_active_sessions(){
-        return new HashSet(active_sessions.values());
+        return new HashSet<>(active_sessions.values());
     }
 }
