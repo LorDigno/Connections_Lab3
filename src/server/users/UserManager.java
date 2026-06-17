@@ -69,7 +69,7 @@ public class UserManager {
 
         out.setStatus(ResponseStatus.OK);
         out.setDescription("Login eseguito correttamente.\n " +
-                "Puoi vedere la nua partita con requestGameInfo della partita corrente\n");
+                "Puoi vedere la partita con requestGameInfo della partita corrente\n");
         return out;
     }
 

@@ -94,6 +94,15 @@ public class GameServer {
             game_m.close_all();
         }
 
-        //aggiungi poi quelli degli altri componenti se necessari
+        if(scheduler != null){
+            try{
+                scheduler.shutdown();
+                if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
+                    scheduler.shutdownNow();
+                }
+            }catch(InterruptedException e){
+                System.err.println("Errore nella chiusura dello scheduler della persistenza");
+            }
+        }
     }
 }

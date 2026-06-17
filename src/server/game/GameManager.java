@@ -394,7 +394,7 @@ public class GameManager{
         return (int) Math.max(0,server.game_time - (System.currentTimeMillis() -  start_time));
     }
 
-    ///libera tutte le risorse del game manager
+    ///Libera tutte le risorse del game manager
     public void close_all(){
         if(timer != null){
             timer.shutdown();
