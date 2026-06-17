@@ -1,11 +1,13 @@
 package client.operations;
 
+import client.ClientCommsException;
 import client.Communication;
 import client.GameClient;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.nio.channels.ClosedSelectorException;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.TimeUnit;
@@ -14,7 +16,7 @@ public abstract class Operation{
     public GameClient game;
     public String name;
 
-    //chiama gli altri metodi
+    ///Template Method in cui checks, payload e digest cambiano in base all'operazione
     public void execute() throws InterruptedException{
         boolean n = checks();
         if(!n){
@@ -32,13 +34,13 @@ public abstract class Operation{
         digest(response);
     };
 
-    //controlli necessari al fare l'operazione
+    ///Controlli necessari al fare l'operazione
     public abstract boolean checks();
 
-    //creazione del payload della richiesta
+    ///Creazione del payload della richiesta
     public abstract String payload() throws InterruptedException;
 
-    //invia msg e rende la risposta relativa
+    ///Invia msg e rende la risposta relativa
     private String communicate(String msg) throws InterruptedException{
 
         //dove andrò a immettere la risposta
@@ -82,15 +84,15 @@ public abstract class Operation{
         return response_msg;
     }
 
-    //nel caso alcune implementazioni necessitino di un "finally" dopo communicate
+    ///Se va storto qualcosa resetto il client
     public void on_fail(){
         game.reset();
     };
 
-    //analisi della risposta e stampa dei risultati a schermo
+    ///Analisi della risposta e stampa dei risultati a schermo
     public abstract void digest(String response);
 
-    //instaura una connessione tcp col server del GameClient
+    ///Instaura una connessione tcp col server del GameClient e avvia il thread di comunicazione
     protected boolean connessione(){
         //provo ad instaurare la connessione al server
         int port = game.port;
@@ -101,22 +103,27 @@ public abstract class Operation{
             InetSocketAddress socketAddress = new InetSocketAddress(host, port);
             //Avvio la connessione
             sock.connect(socketAddress);
-        }catch (UnknownHostException e){
+        }catch(UnknownHostException e){
             System.err.println("###\tProblemi di risoluzione dns del server" + e);
             return false;
-        }catch (IOException e) {
+        }catch(IOException e) {
             System.err.println("###\tConnessione rifiutata dal server o andata in timeout" + e);
             return false;
         }
 
         //se sono qua il socket tcp è stato instanziato.
         //va inizializzato il thread di comunicazione, per ora senza DatagramChannel associato.
-        //sarà dopo ,se il login ha successo, ad essere aggiunto.
+        //sarà dopo,se il login ha successo, ad essere aggiunto.
+        try{
+            Communication comm = new Communication(sock, Thread.currentThread(), game.reject_input);
+            game.comm_thread =  new Thread(comm);
+            game.comm = comm;
+            game.comm_thread.start();
+        }catch(ClientCommsException e){
+            //non si è inizializzato bene
+            return false;
+        }
 
-        Communication comm = new Communication(sock, Thread.currentThread(), game.reject_input);
-        game.comm_thread =  new Thread(comm);
-        game.comm = comm;
-        game.comm_thread.start();
 
         return true;
     }

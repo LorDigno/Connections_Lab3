@@ -63,6 +63,7 @@ public class GameManager{
         start_time = 0;
 
         participants = new ConcurrentHashMap<>();
+        this.socks = new ConcurrentLinkedQueue<>();
     }
 
     ///Avvia la prima partita e il threadpool dei client

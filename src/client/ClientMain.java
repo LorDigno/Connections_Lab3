@@ -14,9 +14,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class ClientMain {
-    //inizializza l'oggetto GameClient leggendo la configurazione
+    ///Inizializza l'oggetto GameClient leggendo la configurazione
     public static void main(String args[]){
-        File config_file = new File("src/client/client.properties");
+        File config_file = new File("client.properties");
 
         try{
             FileReader reader = new FileReader(config_file);

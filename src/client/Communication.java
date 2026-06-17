@@ -35,7 +35,8 @@ public class Communication implements Runnable {
         }
     }
 
-    public Communication(SocketChannel tcp_sock, Thread game_thread, AtomicBoolean interrupt){
+    public Communication(SocketChannel tcp_sock, Thread game_thread, AtomicBoolean interrupt)
+            throws ClientCommsException{
         this.game_thread = game_thread;
 
         //flag per bloccare l'input da stdin
@@ -58,9 +59,9 @@ public class Communication implements Runnable {
         try{
             selector = Selector.open();
         }catch (IOException e) {
-            System.err.println("#### Problemi d'instaurazione della connessione, operazione annullata");
-            //trovare il modo di comunicarlo al mainThread
-            //tbd
+            System.err.println("####Problemi d'instaurazione della connessione, operazione annullata");
+            //in questo momento nel costruttore sono ancora nel mainThread
+            throw new ClientCommsException();
         }
 
         udp_key = null;
@@ -74,7 +75,7 @@ public class Communication implements Runnable {
         } catch (IOException e) {
             System.err.println("#### Problemi d'instaurazione della connessione, operazione annullata");
             //trovare il modo di comunicarlo al mainThread
-            //tbd
+            throw new ClientCommsException();
         }
     }
 
@@ -92,7 +93,7 @@ public class Communication implements Runnable {
                 //  non se ne accorge.
                 try {
                     selector.select();
-                }catch (IOException ex) {
+                }catch(IOException ex) {
                     ex.printStackTrace();
                     break;
                 }
@@ -100,8 +101,7 @@ public class Communication implements Runnable {
                 //ottengo il SelectedKeySet
                 Set<SelectionKey> readyKeys = selector.selectedKeys();
 
-                //garantisco che se c'è una notifica la stampo subito a schermo.
-
+                //gestisco prima la notifica udp in lettura
                 if (udp_key != null  && readyKeys.contains(udp_key)) {
                     //controllo per sicurezza
                     if(udp_key.isReadable()){
@@ -140,6 +140,8 @@ public class Communication implements Runnable {
 
     }
 
+    ///Aggiunge al selettore il canale udp.
+    ///Rende true se ha funzionato, false altrimenti.
     public boolean add_udp_channel(DatagramChannel udp_sock, AtomicInteger puzzle_id){
         try{
             if(udp_sock != null) {
@@ -158,8 +160,6 @@ public class Communication implements Runnable {
             }
         } catch (IOException e) {
             System.err.println("#### Problemi d'instaurazione dell'udp socket, operazione annullata");
-            //trovare il modo di comunicarlo al mainThread
-            //tbd
         }
         return false;
     }

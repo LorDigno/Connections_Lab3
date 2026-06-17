@@ -19,6 +19,8 @@ public class GameClient {
     public AtomicBoolean reject_input;
     public AtomicInteger puzzle_id;
     private BlockingQueue<String> input_queue;
+
+    //usati per gestire la chiusura della comunicazione
     public Thread comm_thread;
     public Communication comm;
 
@@ -33,7 +35,7 @@ public class GameClient {
         this.puzzle_id = new AtomicInteger(-1);
     }
 
-    //main lifecycle of the GameClient
+    ///Main lifecycle of the GameClient
     public void launch(){
         while(true) {
             try{
@@ -41,10 +43,9 @@ public class GameClient {
                     throw new InterruptedException();
                 }
 
-                //get the player's input
                 System.out.print("> ");
 
-                //reacts to the players input
+                //prende e interpreta l'input dell'utente
                 Operation op = op_choice(get_input());
                 if(op != null){
                     //esegue l'azione
@@ -64,7 +65,7 @@ public class GameClient {
         }
     }
 
-    //capisce che operazione fare dato l'input
+    ///Capisce che operazione fare dato l'input con uno switch della morte
     private Operation op_choice(String input){
         Operation op = null;
         switch(input){
@@ -97,6 +98,7 @@ public class GameClient {
                 break;
             case "quit":
                 quit();
+                break;
             case "help":
                 help();
                 break;
@@ -110,7 +112,7 @@ public class GameClient {
         return input_queue.take();
     }
 
-    //chiude il socketChannel e resetta lo stato del gameClient
+    ///Chiude il socketChannel, e il thread di comunicazione resetta lo stato del gameClient
     public void reset() {
         //ciudo la connessione tcp
         try {
@@ -120,10 +122,10 @@ public class GameClient {
             if(comm_thread != null){
                 comm_thread.join();
             }
-        }catch (InterruptedException e){
+        }catch(InterruptedException e){
             //teoricamente dopo l'annullamento di tutti i riferimenti subentra il garbage collector
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            comm_thread.interrupt();
         }
 
         //reset del GameClient
@@ -136,6 +138,7 @@ public class GameClient {
         System.out.println("---Stato del client azzerato");
     }
 
+    ///Esegue il logout e chiude tutto
     private void quit(){
         try{
             if(this.u_status == UserStatus.LOGGED_IN){
@@ -147,10 +150,13 @@ public class GameClient {
             System.err.println("Interruzione in quit");
         }
 
+        reset();
+
         System.out.println("\nArrivederci e grazie per aver giocato!!\n");
         System.exit(0);
     }
 
+    ///Stampa a schermo le informazioni sui comandi possibili
     private void help(){
         System.out.println("Le operazioni possibili sono:  (tutte non case sensitive)\n" +
                 "\n- Operazioni di gestione del profilo\n" +

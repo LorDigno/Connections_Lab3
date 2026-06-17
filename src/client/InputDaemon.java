@@ -5,6 +5,8 @@ import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+
+///Prende gli input da stdin e poi li manda al main_thread tramite una blockingqueue
 public class InputDaemon implements Runnable{
 
     private BlockingQueue<String> queue;

@@ -8,8 +8,9 @@ import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.channels.DatagramChannel;
 
+///Operazione che gestisce la sessione utente col server
 public class LogInOp extends Operation {
-    //operazione che gestisce la connessione iniziale TCP col server
+
     private DatagramChannel udp_sock;
 
     public LogInOp(GameClient game){
@@ -87,7 +88,13 @@ public class LogInOp extends Operation {
             game.puzzle_id.set(new_id);
 
             //aggiungo il channel di ricezione delle modifiche
-            game.comm.add_udp_channel(udp_sock, game.puzzle_id);
+            boolean check = game.comm.add_udp_channel(udp_sock, game.puzzle_id);
+            if(!check){
+                //non è stato creato il canale udp
+                System.err.println("Problemi d'instaurazione del canale delle notifiche");
+                game.reset();
+                return;
+            }
 
             //fatto tutto
             game.u_status = UserStatus.LOGGED_IN;
