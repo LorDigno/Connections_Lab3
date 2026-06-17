@@ -166,7 +166,7 @@ public class GameClient {
                 "\t*** \"updateCredentials\", cambia le credenziali di un account di cui le hai quelle attuali\n" +
                 "\n- Operazioni di gestione del puzzle (solo da connesso)\n" +
                 "\t*** \"submitProposal\", fa inserire 4 parole per indovinare un gruppo\n" +
-                "\t*** \"requestGameStatus\", mostra le informazioni di gioco sul puzzle attivo o uno vecchio\n" +
+                "\t*** \"requestGameInfo\", mostra le informazioni di gioco sul puzzle attivo o uno vecchio\n" +
                 "\t*** \"requestGameStats\", mostra le statistiche dei giocatori sul puzzle specificato o l'attivo\n" +
                 "\n- Operazioni di gestione del puzzle (solo da connesso)\n" +
                 "\t*** \"requestLeaderboard\", mostra i punteggi di tutti/dei k migliori/di un giocatore specifico\n" +
